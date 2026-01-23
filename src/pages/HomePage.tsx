@@ -34,7 +34,7 @@ const getDayOfWeek = (dateString: string): string => {
 
 function HomePage() {
   const { t, i18n } = useTranslation()
-  const { theme, setTheme, isDark } = useTheme()
+  const { theme, setTheme } = useTheme()
   const [savedItineraries, setSavedItineraries] = useState<SavedItinerary[]>([])
 
   useEffect(() => {

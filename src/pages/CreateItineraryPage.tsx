@@ -94,7 +94,6 @@ function CreateItineraryPage() {
     title: ''
   })
   const [entries, setEntries] = useState<StopEntry[]>(() => [createEmptyEntry()])
-  const [formValidationError, setFormValidationError] = useState('')
   const [validationErrors, setValidationErrors] = useState<{ title?: boolean }>({})
   const [toastMessage, setToastMessage] = useState('')
   const [toastVisible, setToastVisible] = useState(false)
@@ -143,19 +142,16 @@ function CreateItineraryPage() {
 
   const addEntry = () => {
     setEntries((prev) => [...prev, createEmptyEntry()])
-    setFormValidationError('')
   }
 
   const updateEntry = (index: number, updates: Partial<typeof entries[number]>) => {
     setEntries((prev) =>
       prev.map((entry, idx) => (idx === index ? { ...entry, ...updates } : entry))
     )
-    setFormValidationError('')
   }
 
   const openModalWithValidation = () => {
     setModalError('')
-    setFormValidationError('')
     setValidationErrors({})
 
     const errors: { title?: boolean } = {}
@@ -272,7 +268,6 @@ function CreateItineraryPage() {
               value={formData.title}
               onChange={(e) => {
                 setFormData({ ...formData, title: e.target.value })
-                setFormValidationError('')
                 setValidationErrors((prev) => ({ ...prev, title: false }))
               }}
               placeholder={t('create.titlePlaceholder', 'e.g., Tokyo Trip 2024')}
@@ -338,11 +333,13 @@ function CreateItineraryPage() {
                       <span className="sr-only">{t('create.entryDate')}</span>
                       <div
                         onClick={(e) => {
-                          const input = (e.currentTarget as HTMLElement).querySelector('input')
-                          if (input && 'showPicker' in input) {
-                            (input as HTMLInputElement).showPicker()
-                          } else {
-                            input?.focus()
+                          const input = (e.currentTarget as HTMLElement).querySelector('input') as HTMLInputElement | null
+                          if (input) {
+                            try {
+                              input.showPicker()
+                            } catch {
+                              input.focus()
+                            }
                           }
                         }}
                         className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm cursor-pointer hover:border-[#5A9CB5] transition dark:border-gray-700 dark:bg-gray-900"
@@ -365,11 +362,13 @@ function CreateItineraryPage() {
                       <span className="sr-only">{t('create.entryTime')}</span>
                       <div
                         onClick={(e) => {
-                          const input = (e.currentTarget as HTMLElement).querySelector('input')
-                          if (input && 'showPicker' in input) {
-                            (input as HTMLInputElement).showPicker()
-                          } else {
-                            input?.focus()
+                          const input = (e.currentTarget as HTMLElement).querySelector('input') as HTMLInputElement | null
+                          if (input) {
+                            try {
+                              input.showPicker()
+                            } catch {
+                              input.focus()
+                            }
                           }
                         }}
                         className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm cursor-pointer hover:border-[#5A9CB5] transition dark:border-gray-700 dark:bg-gray-900"
