@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Itineraries are protected by password authentication
-Each itinerary must have password protection to prevent unauthorized access while remaining simple to share.
+Each itinerary MUST have password protection to prevent unauthorized access while remaining simple to share.
 
 #### Scenario: Setting itinerary password
 ```gherkin
@@ -28,7 +28,7 @@ And they can retry with a different password
 ```
 
 ### Requirement: Shareable URLs provide easy access
-Each itinerary has a unique, shareable URL that can be distributed to collaborators.
+Each itinerary SHALL have a unique, shareable URL that can be distributed to collaborators.
 
 #### Scenario: Generating shareable URL
 ```gherkin
@@ -45,7 +45,7 @@ Then friends can access the itinerary from any device
 ```
 
 ### Requirement: Password can be updated
-The itinerary owner can change the password to revoke and re-grant access.
+The system SHALL allow the itinerary owner to change the password to revoke and re-grant access.
 
 #### Scenario: Changing password
 ```gherkin

@@ -12,20 +12,41 @@ Users need a simple way to collaboratively plan and share travel itineraries wit
 
 ## Proposed Solution
 
+### Design Philosophy: Simplicity First
+- **Minimal UI**: Clean, uncluttered interface focusing on essential information
+- **Progressive Disclosure**: Advanced features hidden until needed
+- **Mobile-First**: Optimized for one-handed mobile use
+- **No Onboarding**: Immediately usable without tutorials
+
 ### Core Capabilities
 1. **Itinerary Management** - Create, edit, and organize travel itineraries with schedule, locations, costs, and notes
 2. **Secure Sharing** - Share itineraries via URL with password protection
 3. **Offline Access** - Progressive Web App (PWA) with offline viewing capability
 4. **Collaborative Editing** - Multiple users can edit shared itineraries simultaneously
-5. **Map Integration** - Display locations on interactive maps
-6. **AI Time Estimation** - Automatically calculate travel time and duration between destinations
+5. **Map Integration** - Display locations on interactive maps (togglable view)
+6. **AI Time Estimation** - Automatically calculate travel time and duration between destinations (optional suggestions)
+7. **Localization** - Support for Japanese and English with auto-detection and manual switching
+8. **Dark Mode** - Light and dark themes with system preference detection and manual override
 
 ### Technical Approach
-- **Frontend**: Next.js with React, TypeScript, Tailwind CSS
-- **Backend**: Firebase (Firestore for data, Authentication for password auth, Hosting)
-- **PWA**: Service Workers for offline caching
-- **Maps**: Google Maps API or Mapbox
-- **AI**: Google Maps Distance Matrix API + time estimation algorithm
+- **Frontend**: React 18 with Vite, TypeScript, React Router, Tailwind CSS
+- **Backend**: Firebase (Firestore for data, Authentication for password auth, Cloud Functions for API)
+- **Hosting**: Firebase Hosting
+- **PWA**: vite-plugin-pwa with Workbox for offline caching
+- **Maps**: Google Maps API or Mapbox (lazy-loaded, togglable)
+- **AI**: Google Maps Distance Matrix API + time estimation algorithm (non-intrusive suggestions)
+- **i18n**: react-i18next for Japanese and English support
+
+### UI Simplification Strategy
+- **Single-page view**: List view as default, map as optional toggle
+- **Inline editing**: Edit items directly in the list (no modal dialogs)
+- **Minimal form fields**: Show only essential fields (date, time, place, cost), hide advanced fields
+- **Auto-save**: No save buttons, changes sync automatically
+- **Bottom sheet/drawer**: Mobile-friendly action menus instead of dropdowns
+- **Icon-based actions**: Delete, edit, reorder with simple icons
+- **Collapsible sections**: Hide costs, notes until user expands
+- **Auto-geocoding**: Type place name → autocomplete suggestions → auto-embed map info (no manual steps)
+- **Smart defaults**: AI suggests times but doesn't clutter UI - show as subtle hints
 
 ### Architecture Highlights
 - Mobile-first responsive design

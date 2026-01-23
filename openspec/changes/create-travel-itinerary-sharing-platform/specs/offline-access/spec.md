@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Platform functions as a Progressive Web App
-The application must be installable and work offline to support travelers without reliable internet access.
+The application MUST be installable and work offline to support travelers without reliable internet access.
 
 #### Scenario: Installing PWA
 ```gherkin
@@ -29,7 +29,7 @@ And indicates which data may be stale
 ```
 
 ### Requirement: Service worker caches essential resources
-The platform must cache HTML, CSS, JS, and itinerary data for offline functionality.
+The platform MUST cache HTML, CSS, JS, and itinerary data for offline functionality.
 
 #### Scenario: Caching on first visit
 ```gherkin
@@ -48,7 +48,7 @@ And changes are synchronized
 ```
 
 ### Requirement: Offline editing is handled gracefully
-Users attempting to edit offline are informed that changes require connectivity.
+The system SHALL inform users attempting to edit offline that changes require connectivity.
 
 #### Scenario: Attempting to edit offline
 ```gherkin

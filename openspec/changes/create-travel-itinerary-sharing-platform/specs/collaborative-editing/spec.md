@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Multiple users can edit simultaneously
-Users with the password can edit the itinerary at the same time with real-time synchronization.
+The system SHALL allow users with the password to edit the itinerary at the same time with real-time synchronization.
 
 #### Scenario: Concurrent editing
 ```gherkin
@@ -21,7 +21,7 @@ Then users can see indicators of who else is active (if implemented)
 ```
 
 ### Requirement: Edit conflicts are resolved automatically
-When multiple users edit the same data simultaneously, the system resolves conflicts without user intervention.
+When multiple users edit the same data simultaneously, the system SHALL resolve conflicts without user intervention.
 
 #### Scenario: Simultaneous edits to different items
 ```gherkin
@@ -41,7 +41,7 @@ And no data is corrupted
 ```
 
 ### Requirement: Change history is not required initially
-For the MVP, full revision history is not implemented, but the system preserves data integrity.
+For the MVP, full revision history SHALL NOT be implemented, but the system MUST preserve data integrity.
 
 #### Scenario: No undo for collaborative changes
 ```gherkin

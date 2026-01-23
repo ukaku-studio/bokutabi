@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: Users can create travel itineraries with comprehensive details
-Users must be able to create new itineraries containing schedule information, locations, costs, and free-form notes to organize their trips.
+The system SHALL allow users to create new itineraries containing schedule information, locations, costs, and free-form notes to organize their trips.
 
 #### Scenario: Creating a new itinerary
 ```gherkin
@@ -34,7 +34,7 @@ And shown in chronological order within each day
 ```
 
 ### Requirement: Users can edit and update itinerary details
-Users with access can modify any aspect of the itinerary including items, schedule, and metadata.
+The system SHALL allow users with access to modify any aspect of the itinerary including items, schedule, and metadata.
 
 #### Scenario: Editing itinerary items
 ```gherkin
@@ -61,7 +61,7 @@ And the deletion is synchronized across all viewers
 ```
 
 ### Requirement: Itinerary data persists reliably
-All itinerary data must be stored persistently and be retrievable via the shareable URL.
+All itinerary data MUST be stored persistently and be retrievable via the shareable URL.
 
 #### Scenario: Data persistence
 ```gherkin

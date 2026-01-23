@@ -3,7 +3,7 @@
 ## ADDED Requirements
 
 ### Requirement: System automatically estimates travel time between destinations
-When users add consecutive locations, the system calculates estimated travel time and duration.
+When users add consecutive locations, the system SHALL calculate estimated travel time and duration.
 
 #### Scenario: Calculating travel time
 ```gherkin
@@ -31,7 +31,7 @@ And adjusts estimates accordingly
 ```
 
 ### Requirement: Estimates account for typical visit duration
-For well-known destinations, the system suggests typical visit duration.
+For well-known destinations, the system SHALL suggest typical visit duration.
 
 #### Scenario: Suggesting visit duration
 ```gherkin
@@ -50,7 +50,7 @@ And the user can manually enter expected time
 ```
 
 ### Requirement: Time estimates update when locations change
-If a user modifies locations or sequence, travel times are recalculated.
+If a user modifies locations or sequence, travel times SHALL be recalculated.
 
 #### Scenario: Reordering items with time estimates
 ```gherkin
