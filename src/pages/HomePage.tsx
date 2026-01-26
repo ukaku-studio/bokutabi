@@ -23,8 +23,6 @@ const features = [
   'home.featureAI'
 ]
 
-type Theme = 'light' | 'dark' | 'auto'
-
 const getDayOfWeek = (dateString: string): string => {
   if (!dateString) return ''
   const date = new Date(dateString)
@@ -75,45 +73,75 @@ function HomePage() {
             <div className="space-y-4">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold">{t('settings.language')}</span>
-                <button
-                  onClick={() => i18n.changeLanguage(i18n.language === 'ja' ? 'en' : 'ja')}
-                  className="px-3 py-1 rounded-full border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-200"
-                >
-                  {i18n.language === 'ja' ? 'EN' : '日本語'}
-                </button>
+                <div className="flex rounded-full border border-gray-300 dark:border-gray-600 overflow-hidden">
+                  <button
+                    onClick={() => i18n.changeLanguage('en')}
+                    className={`px-3 py-1 text-sm transition ${
+                      i18n.language === 'en'
+                        ? 'bg-[#5A9CB5] text-white'
+                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    English
+                  </button>
+                  <button
+                    onClick={() => i18n.changeLanguage('ja')}
+                    className={`px-3 py-1 text-sm transition ${
+                      i18n.language === 'ja'
+                        ? 'bg-[#5A9CB5] text-white'
+                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    日本語
+                  </button>
+                </div>
               </div>
               <div className="flex items-center justify-between">
                 <span className="text-sm font-semibold">{t('settings.theme')}</span>
-                <button
-                  onClick={() => {
-                    const themeCycle: Theme[] = ['light', 'dark', 'auto']
-                    const currentIndex = themeCycle.indexOf(theme)
-                    const next = themeCycle[(currentIndex + 1) % themeCycle.length]
-                    setTheme(next)
-                  }}
-                  className="px-3 py-1 rounded-full border border-gray-300 dark:border-gray-600 text-sm text-gray-700 dark:text-gray-200"
-                >
-                  {theme === 'light' ? '☀️' : theme === 'dark' ? '🌙' : '⚡'}
-                </button>
+                <div className="flex rounded-full border border-gray-300 dark:border-gray-600 overflow-hidden">
+                  <button
+                    onClick={() => setTheme('light')}
+                    className={`px-3 py-1 text-sm transition ${
+                      theme === 'light'
+                        ? 'bg-[#5A9CB5] text-white'
+                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {t('settings.light')}
+                  </button>
+                  <button
+                    onClick={() => setTheme('dark')}
+                    className={`px-3 py-1 text-sm transition ${
+                      theme === 'dark'
+                        ? 'bg-[#5A9CB5] text-white'
+                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {t('settings.dark')}
+                  </button>
+                  <button
+                    onClick={() => setTheme('auto')}
+                    className={`px-3 py-1 text-sm transition ${
+                      theme === 'auto'
+                        ? 'bg-[#5A9CB5] text-white'
+                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
+                    }`}
+                  >
+                    {t('settings.auto')}
+                  </button>
+                </div>
               </div>
             </div>
           </div>
         </header>
 
-        <section className="space-y-6">
-          <div className="flex flex-wrap items-baseline justify-between gap-3">
-            <h2 className="text-2xl font-semibold">{t('home.featuresTitle')}</h2>
-            <p className="text-sm text-gray-500 dark:text-gray-400">{t('home.featuresSubtitle')}</p>
-          </div>
-          <div className="grid gap-4 md:grid-cols-2">
+        <section>
+          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
             {features.map((featureKey) => (
               <article
                 key={featureKey}
                 className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-sm"
               >
-                <p className="text-xs uppercase tracking-[0.4em] text-gray-400 dark:text-gray-500">
-                  {t('home.featureLabel')}
-                </p>
                 <p className="text-base font-semibold text-gray-900 dark:text-gray-50">
                   {t(featureKey)}
                 </p>

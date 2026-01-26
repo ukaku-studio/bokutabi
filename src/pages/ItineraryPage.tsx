@@ -505,12 +505,22 @@ function ItineraryPage() {
           <h1 className="text-3xl font-semibold">
             {itinerary ? itinerary.title : t('itinerary.loadingTitle', 'Itinerary')}
           </h1>
-          <Link
-            to="/"
-            className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-300"
-          >
-            ← {t('common.backHome')}
-          </Link>
+          <div className="flex items-center gap-4">
+            {id && localStorage.getItem(`auth-${id}`) && (
+              <Link
+                to={`/create?edit=${id}`}
+                className="px-4 py-2 rounded-full bg-[#5A9CB5] text-white text-sm font-semibold hover:bg-[#4a8ca5]"
+              >
+                {t('itinerary.editButton')}
+              </Link>
+            )}
+            <Link
+              to="/"
+              className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-300"
+            >
+              ← {t('common.backHome')}
+            </Link>
+          </div>
         </div>
         {isOffline && (
           <div className="rounded-2xl border border-orange-300 bg-orange-50 dark:bg-orange-900/40 dark:border-orange-700 p-3 text-sm font-semibold text-orange-800 dark:text-orange-200">

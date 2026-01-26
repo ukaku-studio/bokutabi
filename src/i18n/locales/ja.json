@@ -21,9 +21,6 @@
     "quickSettings": "クイック設定",
     "currentLanguage": "言語: {{lang}}",
     "currentTheme": "テーマ: {{mode}}",
-    "featuresTitle": "できること",
-    "featuresSubtitle": "モバイルファースト、パスワード共有",
-    "featureLabel": "特徴",
     "featureShare": "パスワード付きURLで旅程を共有",
     "featureOffline": "オフラインでも使えるPWA",
     "featureCollaborate": "友達とリアルタイムで編集",
@@ -110,7 +107,8 @@
       "walking": "徒歩",
       "transit": "公共交通",
       "driving": "車"
-    }
+    },
+    "editButton": "旅程を編集"
   },
   "settings": {
     "language": "言語",
@@ -136,17 +134,16 @@
     "locationPlaceholder": "まだ場所が設定されていません",
     "selectLocation": "場所を選ぶ",
     "entryMemo": "メモ",
-    "entryMemoPlaceholder": "この予定についてのメモを残せます",
+    "entryMemoPlaceholder": "プランの詳細（任意）",
     "addEntry": "別のスポットを追加",
     "locationPickerTitle": "場所を選ぶ",
-    "locationPickerSubtitle": "サンプルの場所を選んでスポットに割り当てましょう。",
     "locationPickerClose": "閉じる",
     "modalTitle": "パスワードを設定",
     "modalDescription": "友達がリンクから旅程にアクセスできるよう、パスワードで保護してください。",
     "modalPasswordLabel": "パスワード",
     "modalPasswordHint": "2文字以上のパスワードを入力してください。",
     "modalPasswordError": "パスワードは2文字以上必要です。",
-    "modalSaveButton": "旅程を保存",
+    "modalSaveButton": "保存してリンクを生成",
     "modalSuccessMessage": "旅程を保存しました。以下のリンクを共有できます。",
     "modalShareLabel": "共有リンク",
     "modalSaveError": "旅程を保存できませんでした。",
@@ -156,9 +153,28 @@
     "addPanel": "パネルを追加",
     "locationButtonLabel": "位置を選択",
     "locationHint": "タップして場所を選んでください",
-    "mapModalSearchLabel": "Googleマップを検索",
     "mapModalSearchPlaceholder": "住所やランドマークで検索",
-    "mapModalMapPlaceholder": "Googleマップのプレビュー（モック）"
+    "mapModalMapPlaceholder": "Googleマップのプレビュー（モック）",
+    "selectFromSearch": "設定する",
+    "searchButton": "検索",
+    "allDates": "全て",
+    "entryCost": "金額",
+    "entryCostPlaceholder": "金額（任意）",
+    "entryCurrency": "通貨",
+    "emptyPanelsRemoved": "空のパネルを削除しました",
+    "geocodingInProgress": "場所を検索中...",
+    "geocodingFailed": "この場所の座標を取得できませんでした",
+    "previewButton": "プレビュー",
+    "copiedLink": "コピーしました！",
+    "deleteConfirmTitle": "削除の確認",
+    "deleteConfirmMessage": "このパネルには入力内容があります。削除してもよろしいですか？",
+    "deleteConfirmYes": "削除する",
+    "deleteConfirmNo": "キャンセル"
+  },
+  "preview": {
+    "title": "プレビュー",
+    "backToEdit": "編集に戻る",
+    "totalCost": "合計金額"
   },
   "auth": {
     "title": "パスワードが必要",
@@ -166,6 +182,9 @@
     "password": "パスワード",
     "passwordPlaceholder": "パスワードを入力",
     "unlock": "旅程を開く",
-    "invalidPassword": "パスワードが正しくありません。もう一度入力してください。"
+    "invalidPassword": "パスワードが正しくありません。もう一度入力してください。",
+    "basicTitle": "ログインが必要",
+    "basicUsername": "ユーザー名",
+    "basicPassword": "パスワード"
   }
 }

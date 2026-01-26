@@ -21,9 +21,6 @@
     "quickSettings": "Quick Settings",
     "currentLanguage": "Language: {{lang}}",
     "currentTheme": "Theme: {{mode}}",
-    "featuresTitle": "What you can do",
-    "featuresSubtitle": "Mobile-first, password-protected itineraries",
-    "featureLabel": "Feature",
     "featureShare": "Share itineraries with password-protected URLs",
     "featureOffline": "PWA-ready so trips work offline",
     "featureCollaborate": "Real-time collaboration with friends",
@@ -100,17 +97,18 @@
     "mapNoCoordinates": "No mapped coordinates yet. Add a location with a place or address.",
     "mapSelectionTitle": "Selected location",
     "mapSelectHint": "Tap any marker to see the details for that stop.",
-    "offlineBanner": "Offline mode: changes are saved locally and sync once you’re online.",
+    "offlineBanner": "Offline mode: changes are saved locally and sync once you're online.",
     "aiTitle": "AI time insights",
     "aiSubtitle": "Subtle recommendations based on your schedule.",
     "aiTravelHint": "AI suggests {mode} travel from {from} takes about {minutes} min.",
-    "aiDurationHint": "AI estimates you’ll spend ~{minutes} min at {title}.",
+    "aiDurationHint": "AI estimates you'll spend ~{minutes} min at {title}.",
     "aiFallback": "AI will highlight travel tips once you add more locations.",
     "mode": {
       "walking": "walking",
       "transit": "transit",
       "driving": "driving"
-    }
+    },
+    "editButton": "Edit itinerary"
   },
   "settings": {
     "language": "Language",
@@ -136,17 +134,16 @@
     "locationPlaceholder": "No location yet",
     "selectLocation": "Select location",
     "entryMemo": "Memo",
-    "entryMemoPlaceholder": "Optional notes about this stop",
+    "entryMemoPlaceholder": "Plan details (optional)",
     "addEntry": "Add another stop",
     "locationPickerTitle": "Select a place",
-    "locationPickerSubtitle": "Pick a sample location to anchor this stop on the map.",
     "locationPickerClose": "Close",
     "modalTitle": "Set a password",
     "modalDescription": "Protect your itinerary with a password so friends can access it via a shareable link.",
     "modalPasswordLabel": "Password",
     "modalPasswordHint": "Enter a password with at least two characters.",
     "modalPasswordError": "Password must have at least two characters.",
-    "modalSaveButton": "Save itinerary",
+    "modalSaveButton": "Save and generate link",
     "modalSuccessMessage": "Your itinerary is ready! Copy the link below to share with friends.",
     "modalShareLabel": "Shareable link",
     "modalSaveError": "Unable to save the itinerary right now.",
@@ -156,9 +153,28 @@
     "addPanel": "Add another panel",
     "locationButtonLabel": "Choose location",
     "locationHint": "Tap the pin to pick a place",
-    "mapModalSearchLabel": "Search Google Maps",
     "mapModalSearchPlaceholder": "Search for an address or landmark",
-    "mapModalMapPlaceholder": "Google Map preview (placeholder)"
+    "mapModalMapPlaceholder": "Google Map preview (placeholder)",
+    "selectFromSearch": "Apply",
+    "searchButton": "Search",
+    "allDates": "All",
+    "entryCost": "Cost",
+    "entryCostPlaceholder": "Cost (optional)",
+    "entryCurrency": "Currency",
+    "emptyPanelsRemoved": "Empty panels were removed",
+    "geocodingInProgress": "Looking up location...",
+    "geocodingFailed": "Could not find coordinates for this location",
+    "previewButton": "Preview",
+    "copiedLink": "Link copied!",
+    "deleteConfirmTitle": "Confirm Delete",
+    "deleteConfirmMessage": "This panel has content. Are you sure you want to delete it?",
+    "deleteConfirmYes": "Delete",
+    "deleteConfirmNo": "Cancel"
+  },
+  "preview": {
+    "title": "Preview",
+    "backToEdit": "Back to edit",
+    "totalCost": "Total cost"
   },
   "auth": {
     "title": "Password Required",
@@ -166,6 +182,9 @@
     "password": "Password",
     "passwordPlaceholder": "Enter password",
     "unlock": "Unlock Itinerary",
-    "invalidPassword": "Invalid password. Please try again."
+    "invalidPassword": "Invalid password. Please try again.",
+    "basicTitle": "Login Required",
+    "basicUsername": "Username",
+    "basicPassword": "Password"
   }
 }
