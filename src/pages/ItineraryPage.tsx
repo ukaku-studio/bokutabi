@@ -5,7 +5,7 @@ import { enUS } from 'date-fns/locale/en-US'
 import { ja } from 'date-fns/locale/ja'
 import { Timestamp } from 'firebase/firestore'
 import { useTranslation } from 'react-i18next'
-import ItineraryMap from '../components/map/ItineraryMap'
+import LeafletItineraryMap from '../components/map/LeafletItineraryMap'
 import { api } from '../lib/api'
 import type { Itinerary, ItineraryItem } from '../types/itinerary'
 
@@ -667,7 +667,7 @@ function ItineraryPage() {
               <div className="space-y-3">
                 <div className="rounded-3xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-4">
                   {mapItems.length ? (
-                    <ItineraryMap
+                    <LeafletItineraryMap
                       items={mapItems}
                       selectedItemId={mapSelectedItemId}
                       onMarkerClick={(item) => setMapSelectedItemId(item?.id ?? null)}

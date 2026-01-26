@@ -114,8 +114,7 @@
     "language": "言語",
     "theme": "テーマ",
     "light": "ライト",
-    "dark": "ダーク",
-    "auto": "自動"
+    "dark": "ダーク"
   },
   "create": {
     "title": "旅程の詳細",
@@ -164,6 +163,7 @@
     "emptyPanelsRemoved": "空のパネルを削除しました",
     "geocodingInProgress": "場所を検索中...",
     "geocodingFailed": "この場所の座標を取得できませんでした",
+    "geocodingFallbackMessage": "位置情報を取得できませんでしたが、ラベルとして保存します",
     "previewButton": "プレビュー",
     "copiedLink": "コピーしました！",
     "deleteConfirmTitle": "削除の確認",

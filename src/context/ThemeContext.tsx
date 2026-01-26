@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react'
 
-type Theme = 'light' | 'dark' | 'auto'
+type Theme = 'light' | 'dark'
 
 interface ThemeContextType {
   theme: Theme
@@ -12,23 +12,21 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('theme')
-    return (saved as Theme) || 'auto'
+    const saved = localStorage.getItem('theme') as Theme | 'auto' | null
+    // Migrate existing 'auto' users
+    if (saved === 'auto') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+      const migrated = prefersDark ? 'dark' : 'light'
+      localStorage.setItem('theme', migrated)
+      return migrated
+    }
+    return (saved as Theme) || 'light'
   })
 
-  const [isDark, setIsDark] = useState(false)
+  const [isDark, setIsDark] = useState(theme === 'dark')
 
   useEffect(() => {
-    if (theme === 'auto') {
-      const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)')
-      setIsDark(mediaQuery.matches)
-
-      const handler = (e: MediaQueryListEvent) => setIsDark(e.matches)
-      mediaQuery.addEventListener('change', handler)
-      return () => mediaQuery.removeEventListener('change', handler)
-    } else {
-      setIsDark(theme === 'dark')
-    }
+    setIsDark(theme === 'dark')
   }, [theme])
 
   useEffect(() => {

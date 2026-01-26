@@ -114,8 +114,7 @@
     "language": "Language",
     "theme": "Theme",
     "light": "Light",
-    "dark": "Dark",
-    "auto": "Auto"
+    "dark": "Dark"
   },
   "create": {
     "title": "Itinerary Details",
@@ -164,6 +163,7 @@
     "emptyPanelsRemoved": "Empty panels were removed",
     "geocodingInProgress": "Looking up location...",
     "geocodingFailed": "Could not find coordinates for this location",
+    "geocodingFallbackMessage": "Could not fetch location data, will save as label",
     "previewButton": "Preview",
     "copiedLink": "Link copied!",
     "deleteConfirmTitle": "Confirm Delete",

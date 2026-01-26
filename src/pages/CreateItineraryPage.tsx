@@ -5,6 +5,7 @@ import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react'
 import { useTheme } from '../context/ThemeContext'
 import { api } from '../lib/api'
 import { geocodeAddress } from '../lib/geocoding'
+import LocationPreviewMap from '../components/map/LocationPreviewMap'
 
 type StopEntry = {
   date: string
@@ -131,6 +132,10 @@ function CreateItineraryPage() {
   const [selectedDateFilter, setSelectedDateFilter] = useState<string | null>(null)
   const [isGeocoding, setIsGeocoding] = useState(false)
   const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(null)
+  const [geocodingError, setGeocodingError] = useState<string>('')
+  const [hasSearched, setHasSearched] = useState(false)
+  const [searchResultCoords, setSearchResultCoords] = useState<{ lat: number; lng: number } | null>(null)
+  const [searchResultLocation, setSearchResultLocation] = useState<string>('')
 
   const isEntryModified = (entry: StopEntry): boolean => {
     return (
@@ -176,50 +181,102 @@ function CreateItineraryPage() {
     }
   }, [toastVisible])
 
+  // Auto-search when modal opens with existing location
+  useEffect(() => {
+    if (locationModalOpen && activeEntryIndex !== null) {
+      const currentEntry = entries[activeEntryIndex]
+      if (currentEntry.location && currentEntry.location.trim()) {
+        // Set the location search value
+        setLocationSearch(currentEntry.location)
+        setSearchResultLocation(currentEntry.location)
+        // Auto-trigger search if coordinates exist
+        if (currentEntry.coordinates) {
+          setSearchResultCoords(currentEntry.coordinates)
+          setHasSearched(true)
+        } else {
+          // Try to search for the location
+          const autoSearch = async () => {
+            setIsGeocoding(true)
+            setGeocodingError('')
+            try {
+              const result = await geocodeAddress(currentEntry.location)
+              setSearchResultCoords({ lat: result.lat, lng: result.lng })
+              setSearchResultLocation(result.formattedAddress)
+              setHasSearched(true)
+            } catch {
+              setGeocodingError(t('create.geocodingFallbackMessage'))
+              setSearchResultLocation(currentEntry.location)
+              setHasSearched(true)
+            } finally {
+              setIsGeocoding(false)
+            }
+          }
+          autoSearch()
+        }
+      }
+    }
+  }, [locationModalOpen, activeEntryIndex])
+
   const showToast = (message: string) => {
     setToastMessage(message)
     setToastVisible(true)
   }
 
-  const applyLocationSearch = async () => {
+  const handleSearchClick = async () => {
     const query = locationSearch.trim()
-    if (!query || activeEntryIndex === null) {
+    if (!query) {
+      return
+    }
+
+    // Try geocoding
+    setIsGeocoding(true)
+    setGeocodingError('')
+    setSearchResultCoords(null)
+    setSearchResultLocation('')
+    try {
+      const result = await geocodeAddress(query)
+      setSearchResultCoords({ lat: result.lat, lng: result.lng })
+      setSearchResultLocation(result.formattedAddress)
+      setHasSearched(true)
+    } catch {
+      setGeocodingError(t('create.geocodingFallbackMessage'))
+      showToast(t('create.geocodingFailed'))
+      setSearchResultLocation(query)
+      setHasSearched(true)
+    } finally {
+      setIsGeocoding(false)
+    }
+  }
+
+  const handleApplyLocation = async () => {
+    if (!searchResultLocation || activeEntryIndex === null) {
       return
     }
 
     const currentEntry = entries[activeEntryIndex]
     const updates: Partial<StopEntry> = {
-      location: query,
-      coordinates: null
+      location: searchResultLocation,
+      coordinates: searchResultCoords
     }
 
     // Auto-set emoji if current icon is default
     if (currentEntry.icon === '📍') {
-      const autoEmoji = getAutoEmoji(query)
+      const autoEmoji = getAutoEmoji(searchResultLocation)
       if (autoEmoji) {
         updates.icon = autoEmoji
       }
     }
 
-    // Try geocoding
-    setIsGeocoding(true)
-    try {
-      const result = await geocodeAddress(query)
-      updates.coordinates = { lat: result.lat, lng: result.lng }
-      if (result.formattedAddress) {
-        updates.location = result.formattedAddress
-      }
-    } catch {
-      showToast(t('create.geocodingFailed'))
-    } finally {
-      setIsGeocoding(false)
-    }
-
     updateEntry(activeEntryIndex, updates)
 
+    // Reset modal state
     setLocationModalOpen(false)
     setActiveEntryIndex(null)
     setLocationSearch('')
+    setGeocodingError('')
+    setHasSearched(false)
+    setSearchResultCoords(null)
+    setSearchResultLocation('')
   }
   const resetModal = () => {
     setModalPassword('')
@@ -607,6 +664,10 @@ function CreateItineraryPage() {
                       setActiveEntryIndex(index)
                       setLocationModalOpen(true)
                       setLocationSearch('')
+                      setHasSearched(false)
+                      setSearchResultCoords(null)
+                      setSearchResultLocation('')
+                      setGeocodingError('')
                     }}
                     aria-label={t('create.locationButtonLabel', 'Select location')}
                     className="w-full flex items-center gap-3 rounded-2xl border border-dashed border-[#FAAC68] bg-gradient-to-r from-[#FACE68]/20 via-transparent to-[#FAAC68]/20 px-4 py-3 text-xs text-gray-500 transition hover:border-[#FA6868] hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FAAC68] dark:border-[#FAAC68] dark:from-[#FAAC68]/20 dark:via-transparent dark:to-[#FA6868]/20 dark:hover:border-[#FA6868]"
@@ -616,11 +677,6 @@ function CreateItineraryPage() {
                       <p className="text-[0.85rem] font-semibold text-gray-900 dark:text-gray-50">
                         {entry.location || t('create.locationHint')}
                       </p>
-                      {entry.coordinates && (
-                        <p className="text-[0.7rem] text-gray-500 dark:text-gray-400">
-                          {`${entry.coordinates.lat.toFixed(2)}, ${entry.coordinates.lng.toFixed(2)}`}
-                        </p>
-                      )}
                     </div>
                   </button>
 
@@ -692,6 +748,10 @@ function CreateItineraryPage() {
               setLocationModalOpen(false)
               setActiveEntryIndex(null)
               setLocationSearch('')
+              setHasSearched(false)
+              setSearchResultCoords(null)
+              setSearchResultLocation('')
+              setGeocodingError('')
             }
           }}
         >
@@ -706,6 +766,10 @@ function CreateItineraryPage() {
                   setLocationModalOpen(false)
                   setActiveEntryIndex(null)
                   setLocationSearch('')
+                  setHasSearched(false)
+                  setSearchResultCoords(null)
+                  setSearchResultLocation('')
+                  setGeocodingError('')
                 }}
                 className="text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
               >
@@ -720,27 +784,48 @@ function CreateItineraryPage() {
                     type="text"
                     value={locationSearch}
                     onChange={(e) => setLocationSearch(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && locationSearch.trim() && !isGeocoding) {
+                        handleSearchClick()
+                      }
+                    }}
                     placeholder={t('create.mapModalSearchPlaceholder')}
                     className="flex-1 bg-transparent text-sm text-gray-900 outline-none dark:text-gray-50"
                   />
                 </div>
                 <button
                   type="button"
-                  onClick={applyLocationSearch}
+                  onClick={handleSearchClick}
                   disabled={!locationSearch.trim() || isGeocoding}
                   className="rounded-2xl bg-[#5A9CB5] px-4 py-2 text-sm font-semibold text-white disabled:bg-[#5A9CB5]/50 disabled:opacity-60 hover:bg-[#4a8ca5]"
                 >
                   {isGeocoding ? t('create.geocodingInProgress') : t('create.searchButton')}
                 </button>
               </div>
-              <div className="h-64 md:h-80 lg:h-96 rounded-2xl border border-gray-200 bg-slate-100 p-4 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 flex items-center justify-center">
-                {isGeocoding ? t('create.geocodingInProgress') : t('create.mapModalMapPlaceholder')}
-              </div>
+              {searchResultCoords ? (
+                <LocationPreviewMap
+                  lat={searchResultCoords.lat}
+                  lng={searchResultCoords.lng}
+                  locationName={locationSearch}
+                />
+              ) : (
+                <div className="h-64 md:h-80 lg:h-96 rounded-2xl border border-gray-200 bg-slate-100 p-4 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 flex items-center justify-center">
+                  {isGeocoding ? (
+                    t('create.geocodingInProgress')
+                  ) : geocodingError ? (
+                    <div className="text-red-600 dark:text-red-400">
+                      {geocodingError}
+                    </div>
+                  ) : (
+                    t('create.mapModalMapPlaceholder')
+                  )}
+                </div>
+              )}
               <div className="flex justify-end">
                 <button
                   type="button"
-                  onClick={applyLocationSearch}
-                  disabled={!locationSearch.trim() || isGeocoding}
+                  onClick={handleApplyLocation}
+                  disabled={!hasSearched}
                   className="rounded-2xl bg-[#5A9CB5] px-5 py-2 text-sm font-semibold text-white disabled:bg-[#5A9CB5]/50 disabled:opacity-60 hover:bg-[#4a8ca5]"
                 >
                   {isGeocoding ? t('create.geocodingInProgress') : t('create.selectFromSearch')}
@@ -888,7 +973,7 @@ function CreateItineraryPage() {
         </div>
       )}
 
-      <div className="fixed right-6 bottom-8 z-40 flex flex-col gap-3">
+      <div className={`fixed right-6 bottom-8 z-40 flex-col gap-3 ${locationModalOpen ? 'hidden md:flex' : 'flex'}`}>
         <button
           onClick={() => {
             // Save current state to localStorage for preview

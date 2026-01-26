@@ -5,17 +5,16 @@ export type GeocodingResult = {
 }
 
 export async function geocodeAddress(address: string): Promise<GeocodingResult> {
-  const apiKey = import.meta.env.VITE_GOOGLE_MAPS_API_KEY
+  const url = new URL('https://nominatim.openstreetmap.org/search')
+  url.searchParams.set('format', 'json')
+  url.searchParams.set('q', address)
+  url.searchParams.set('limit', '1')
 
-  if (!apiKey) {
-    throw new Error('Google Maps API key is not configured')
-  }
-
-  const url = new URL('https://maps.googleapis.com/maps/api/geocode/json')
-  url.searchParams.set('address', address)
-  url.searchParams.set('key', apiKey)
-
-  const response = await fetch(url.toString())
+  const response = await fetch(url.toString(), {
+    headers: {
+      'User-Agent': 'BOKUTABI/1.0 (Travel Itinerary Planner)'
+    }
+  })
 
   if (!response.ok) {
     throw new Error(`Geocoding request failed: ${response.status}`)
@@ -23,16 +22,15 @@ export async function geocodeAddress(address: string): Promise<GeocodingResult> 
 
   const data = await response.json()
 
-  if (data.status !== 'OK' || !data.results || data.results.length === 0) {
-    throw new Error(`Geocoding failed: ${data.status}`)
+  if (!data || data.length === 0) {
+    throw new Error('No results found for this location')
   }
 
-  const result = data.results[0]
-  const { lat, lng } = result.geometry.location
+  const result = data[0]
 
   return {
-    lat,
-    lng,
-    formattedAddress: result.formatted_address
+    lat: parseFloat(result.lat),
+    lng: parseFloat(result.lon),
+    formattedAddress: result.display_name
   }
 }

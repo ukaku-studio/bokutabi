@@ -119,16 +119,6 @@ function HomePage() {
                   >
                     {t('settings.dark')}
                   </button>
-                  <button
-                    onClick={() => setTheme('auto')}
-                    className={`px-3 py-1 text-sm transition ${
-                      theme === 'auto'
-                        ? 'bg-[#5A9CB5] text-white'
-                        : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    {t('settings.auto')}
-                  </button>
                 </div>
               </div>
             </div>
