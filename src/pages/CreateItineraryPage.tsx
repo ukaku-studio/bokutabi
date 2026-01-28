@@ -1,5 +1,5 @@
 import { FormEvent, useRef, useState, useEffect, Fragment, useMemo } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react'
 import { useTheme } from '../context/ThemeContext'
@@ -18,11 +18,62 @@ type StopEntry = {
   currency: string
 }
 
+type TravelMode = 'walking' | 'transit' | 'driving'
+
+type TravelSuggestion = {
+  mode: TravelMode
+  durationMinutes: number
+}
+
 const getDayOfWeek = (dateString: string): string => {
   if (!dateString) return ''
   const date = new Date(dateString)
   const days = ['日', '月', '火', '水', '木', '金', '土']
   return `(${days[date.getDay()]})`
+}
+
+const parseTimeToMinutes = (time: string): number | null => {
+  const match = /^(\d{2}):(\d{2})$/.exec(time)
+  if (!match) return null
+  const hours = Number(match[1])
+  const minutes = Number(match[2])
+  if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
+  if (hours < 0 || hours > 23 || minutes < 0 || minutes > 59) return null
+  return hours * 60 + minutes
+}
+
+const formatTimeFromMinutes = (minutes: number): string => {
+  const normalized = ((minutes % 1440) + 1440) % 1440
+  const hours = Math.floor(normalized / 60)
+  const mins = normalized % 60
+  return `${String(hours).padStart(2, '0')}:${String(mins).padStart(2, '0')}`
+}
+
+const addDaysToDate = (dateString: string, dayOffset: number): string => {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(dateString)) {
+    return ''
+  }
+  const [year, month, day] = dateString.split('-').map(Number)
+  const date = new Date(year, month - 1, day)
+  date.setDate(date.getDate() + dayOffset)
+  const nextYear = date.getFullYear()
+  const nextMonth = String(date.getMonth() + 1).padStart(2, '0')
+  const nextDay = String(date.getDate()).padStart(2, '0')
+  return `${nextYear}-${nextMonth}-${nextDay}`
+}
+
+const getMockTravelSuggestions = (from: string, to: string): TravelSuggestion[] => {
+  const seed = `${from}::${to}`
+  let hash = 0
+  for (const char of seed) {
+    hash = (hash * 31 + char.charCodeAt(0)) % 1000
+  }
+  const baseMinutes = 30 + (hash % 61)
+  return [
+    { mode: 'walking', durationMinutes: baseMinutes + 30 },
+    { mode: 'transit', durationMinutes: baseMinutes },
+    { mode: 'driving', durationMinutes: Math.max(15, baseMinutes - 15) }
+  ]
 }
 
 const createEmptyEntry = (): StopEntry => ({
@@ -34,6 +85,17 @@ const createEmptyEntry = (): StopEntry => ({
   icon: '📍',
   cost: '',
   currency: 'JPY'
+})
+
+const normalizeEntry = (entry: Partial<StopEntry>): StopEntry => ({
+  date: entry.date ?? '',
+  time: entry.time ?? '',
+  location: entry.location ?? '',
+  coordinates: entry.coordinates ?? null,
+  memo: entry.memo ?? '',
+  icon: entry.icon ?? '📍',
+  cost: entry.cost ?? '',
+  currency: entry.currency ?? 'JPY'
 })
 
 const getAutoEmoji = (location: string): string | null => {
@@ -55,6 +117,20 @@ const getAutoEmoji = (location: string): string | null => {
     }
   }
   return null
+}
+
+const splitLocationDisplay = (displayName: string): { name: string; address: string } => {
+  if (!displayName) {
+    return { name: '', address: '' }
+  }
+  const parts = displayName
+    .split(',')
+    .map(part => part.trim())
+    .filter(Boolean)
+  if (parts.length <= 1) {
+    return { name: displayName.trim(), address: '' }
+  }
+  return { name: parts[0], address: parts.slice(1).join(', ') }
 }
 
 const CalendarIcon = ({ className }: { className?: string }) => (
@@ -108,9 +184,11 @@ const MapPinIcon = ({ className }: { className?: string }) => (
 function CreateItineraryPage() {
   const { t } = useTranslation()
   const navigate = useNavigate()
+  const location = useLocation()
   const { isDark } = useTheme()
   const [isModalOpen, setIsModalOpen] = useState(false)
   const [modalPassword, setModalPassword] = useState('')
+  const [showModalPassword, setShowModalPassword] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
   const [shareLink, setShareLink] = useState('')
   const [modalError, setModalError] = useState('')
@@ -133,9 +211,29 @@ function CreateItineraryPage() {
   const [isGeocoding, setIsGeocoding] = useState(false)
   const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(null)
   const [geocodingError, setGeocodingError] = useState<string>('')
+  const [selectedSuggestionByEntry, setSelectedSuggestionByEntry] = useState<Record<number, string>>({})
+  const [pendingSaveOpen, setPendingSaveOpen] = useState(false)
   const [hasSearched, setHasSearched] = useState(false)
   const [searchResultCoords, setSearchResultCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [searchResultLocation, setSearchResultLocation] = useState<string>('')
+  const locationDisplay = useMemo(
+    () => splitLocationDisplay(searchResultLocation),
+    [searchResultLocation]
+  )
+  const locationDisplayName = locationDisplay.name || locationSearch
+  const locationDisplayAddress = locationDisplay.address
+
+  const formatDuration = (minutes: number): string => {
+    const hours = Math.floor(minutes / 60)
+    const mins = minutes % 60
+    if (hours > 0) {
+      return t('create.travelSuggestionDurationHourMinute', { hours, minutes: mins })
+    }
+    return t('create.travelSuggestionDurationMinutes', { minutes })
+  }
+
+  const getSuggestionKey = (suggestion: TravelSuggestion) =>
+    `${suggestion.mode}-${suggestion.durationMinutes}`
 
   const isEntryModified = (entry: StopEntry): boolean => {
     return (
@@ -149,6 +247,12 @@ function CreateItineraryPage() {
     )
   }
 
+  const hasEmptyEntry = useMemo(
+    () => entries.some(entry => !isEntryModified(entry)),
+    [entries]
+  )
+  const canAddEntry = !hasEmptyEntry
+
   const uniqueDates = useMemo(() => {
     const dates = entries
       .map(entry => entry.date)
@@ -161,6 +265,26 @@ function CreateItineraryPage() {
     if (!selectedDateFilter) return entries
     return entries.filter(entry => entry.date === selectedDateFilter)
   }, [entries, selectedDateFilter])
+
+  // Restore draft from preview storage when returning from preview
+  useEffect(() => {
+    const isDefaultState =
+      formData.title.trim() === '' && entries.every(entry => !isEntryModified(entry))
+    if (!isDefaultState) return
+
+    const draft = localStorage.getItem('preview-itinerary')
+    if (!draft) return
+
+    try {
+      const parsed = JSON.parse(draft)
+      if (!parsed || !Array.isArray(parsed.entries)) return
+
+      setFormData({ title: typeof parsed.title === 'string' ? parsed.title : '' })
+      setEntries(parsed.entries.map((entry: Partial<StopEntry>) => normalizeEntry(entry)))
+    } catch {
+      // ignore draft parse errors
+    }
+  }, [entries, formData.title])
 
   const getMinDateForPanel = (index: number): string => {
     for (let i = index - 1; i >= 0; i--) {
@@ -180,6 +304,21 @@ function CreateItineraryPage() {
       return () => clearTimeout(timer)
     }
   }, [toastVisible])
+
+  // Keep only one empty panel at a time
+  useEffect(() => {
+    const emptyIndices = entries
+      .map((entry, idx) => (!isEntryModified(entry) ? idx : -1))
+      .filter(idx => idx >= 0)
+
+    if (emptyIndices.length <= 1) return
+
+    const keepIndex = emptyIndices[emptyIndices.length - 1]
+    setEntries((prev) =>
+      prev.filter((entry, idx) => !(idx !== keepIndex && !isEntryModified(entry)))
+    )
+    setSelectedSuggestionByEntry({})
+  }, [entries])
 
   // Auto-search when modal opens with existing location
   useEffect(() => {
@@ -220,6 +359,54 @@ function CreateItineraryPage() {
   const showToast = (message: string) => {
     setToastMessage(message)
     setToastVisible(true)
+  }
+
+  const savePreviewAndNavigate = () => {
+    const previewData = {
+      id: 'preview',
+      title: formData.title,
+      entries: entries.filter(e => e.location.trim() || e.memo.trim()).map(e => ({
+        date: e.date,
+        time: e.time,
+        location: e.location,
+        icon: e.icon,
+        memo: e.memo,
+        cost: e.cost,
+        currency: e.currency,
+        coordinates: e.coordinates
+      }))
+    }
+    localStorage.setItem('preview-itinerary', JSON.stringify(previewData))
+    navigate('/preview')
+  }
+
+  const openPreviewWithValidation = () => {
+    setModalError('')
+    setValidationErrors({})
+
+    const errors: { title?: boolean } = {}
+
+    if (!formData.title.trim()) {
+      errors.title = true
+    }
+
+    if (Object.keys(errors).length > 0 || entries.length === 0) {
+      setValidationErrors(errors)
+      showToast(t('create.formValidation'))
+      return
+    }
+
+    if (formRef.current?.reportValidity()) {
+      savePreviewAndNavigate()
+    }
+  }
+
+  const showEmptyPanelToast = () => {
+    showToast(t('create.emptyPanelExists'))
+  }
+
+  const showPreviewDisabledToast = () => {
+    showToast(t('create.previewRequiresTitle'))
   }
 
   const handleSearchClick = async () => {
@@ -280,6 +467,7 @@ function CreateItineraryPage() {
   }
   const resetModal = () => {
     setModalPassword('')
+    setShowModalPassword(false)
     setModalError('')
     setCopyMessage('')
     setShareLink('')
@@ -287,19 +475,60 @@ function CreateItineraryPage() {
   }
 
   const addEntry = () => {
-    setEntries((prev) => [...prev, createEmptyEntry()])
+    setEntries((prev) => {
+      const lastEntry = prev[prev.length - 1]
+      const newEntry = createEmptyEntry()
+      if (lastEntry?.date) {
+        newEntry.date = lastEntry.date
+      }
+      return [...prev, newEntry]
+    })
+  }
+
+  const shiftSelectedSuggestions = (startIndex: number, offset: number, removeIndex?: number) => {
+    setSelectedSuggestionByEntry((prev) => {
+      const next: Record<number, string> = {}
+      Object.entries(prev).forEach(([key, value]) => {
+        const idx = Number(key)
+        if (removeIndex !== undefined && idx === removeIndex) return
+        const newIndex = idx > startIndex ? idx + offset : idx
+        if (newIndex >= 0) {
+          next[newIndex] = value
+        }
+      })
+      return next
+    })
   }
 
   const insertEntryAt = (index: number, dateFilter?: string | null) => {
     const newEntry = createEmptyEntry()
     if (dateFilter) {
       newEntry.date = dateFilter
+    } else if (entries[index]?.date) {
+      newEntry.date = entries[index].date
     }
+    shiftSelectedSuggestions(index, 1)
     setEntries((prev) => [
       ...prev.slice(0, index + 1),
       newEntry,
       ...prev.slice(index + 1)
     ])
+  }
+
+  const handleAddEntryClick = () => {
+    if (!canAddEntry) {
+      showEmptyPanelToast()
+      return
+    }
+    addEntry()
+  }
+
+  const handleInsertEntryClick = (index: number) => {
+    if (!canAddEntry) {
+      showEmptyPanelToast()
+      return
+    }
+    insertEntryAt(index, selectedDateFilter)
   }
 
   const handleDeleteClick = (index: number) => {
@@ -315,8 +544,10 @@ function CreateItineraryPage() {
     if (entries.length === 1) {
       // Reset the last panel instead of deleting
       setEntries([createEmptyEntry()])
+      setSelectedSuggestionByEntry({})
     } else {
       setEntries((prev) => prev.filter((_, i) => i !== index))
+      shiftSelectedSuggestions(index, -1, index)
     }
     setDeleteConfirmIndex(null)
   }
@@ -342,6 +573,52 @@ function CreateItineraryPage() {
     })
   }
 
+  const updateEntryWithoutDateCascade = (index: number, updates: Partial<typeof entries[number]>) => {
+    setEntries((prev) => prev.map((entry, idx) => (idx === index ? { ...entry, ...updates } : entry)))
+  }
+
+  const getSuggestedArrival = (baseTime: string, durationMinutes: number) => {
+    const baseMinutes = parseTimeToMinutes(baseTime)
+    if (baseMinutes === null) return null
+    const totalMinutes = baseMinutes + durationMinutes
+    const dayOffset = Math.floor(totalMinutes / 1440)
+    const time = formatTimeFromMinutes(totalMinutes)
+    return { time, dayOffset }
+  }
+
+  const applySuggestionToEntry = (index: number, suggestion: TravelSuggestion) => {
+    const currentEntry = entries[index]
+    const previousEntry = entries[index - 1]
+    if (!currentEntry || !previousEntry) return
+
+    if (currentEntry.time.trim()) {
+      const shouldOverwrite = window.confirm(t('create.travelSuggestionConfirm'))
+      if (!shouldOverwrite) return
+    }
+
+    const arrival = getSuggestedArrival(previousEntry.time, suggestion.durationMinutes)
+    if (!arrival) return
+
+    const updates: Partial<StopEntry> = { time: arrival.time }
+    const baseDate = previousEntry.date || currentEntry.date
+    if (baseDate) {
+      if (arrival.dayOffset > 0) {
+        const nextDate = addDaysToDate(baseDate, arrival.dayOffset)
+        if (nextDate) {
+          updates.date = nextDate
+        }
+      } else if (!currentEntry.date) {
+        updates.date = baseDate
+      }
+    }
+
+    updateEntryWithoutDateCascade(index, updates)
+    setSelectedSuggestionByEntry((prev) => ({
+      ...prev,
+      [index]: getSuggestionKey(suggestion)
+    }))
+  }
+
   const openModalWithValidation = () => {
     setModalError('')
     setValidationErrors({})
@@ -362,6 +639,30 @@ function CreateItineraryPage() {
       setIsModalOpen(true)
     }
   }
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    if (params.get('save') === '1') {
+      params.delete('save')
+      navigate(
+        {
+          pathname: location.pathname,
+          search: params.toString() ? `?${params.toString()}` : ''
+        },
+        { replace: true }
+      )
+      setPendingSaveOpen(true)
+    }
+  }, [location.pathname, location.search, navigate])
+
+  useEffect(() => {
+    if (!pendingSaveOpen) return
+    const hasContent =
+      formData.title.trim() !== '' || entries.some(entry => isEntryModified(entry))
+    if (!hasContent) return
+    openModalWithValidation()
+    setPendingSaveOpen(false)
+  }, [pendingSaveOpen, formData.title, entries, openModalWithValidation])
 
   const handleSave = async (e: FormEvent) => {
     e.preventDefault()
@@ -547,7 +848,19 @@ function CreateItineraryPage() {
             <div className="relative space-y-6">
             {filteredEntries.map((entry) => {
               const index = entries.indexOf(entry)
-              return (
+              const previousEntry = index > 0 ? entries[index - 1] : null
+              const canSuggest =
+                !!previousEntry &&
+                previousEntry.time.trim() !== '' &&
+                previousEntry.location.trim() !== '' &&
+                entry.location.trim() !== '' &&
+                parseTimeToMinutes(previousEntry.time) !== null
+            const travelSuggestions = canSuggest
+              ? getMockTravelSuggestions(previousEntry.location, entry.location)
+              : []
+            const hasLocation = entry.location.trim() !== ''
+
+            return (
               <Fragment key={`entry-${index}`}>
               <div
                 className="relative rounded-3xl border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 p-2 shadow-sm"
@@ -637,15 +950,63 @@ function CreateItineraryPage() {
                         className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm cursor-pointer hover:border-[#5A9CB5] transition dark:border-gray-700 dark:bg-gray-900"
                       >
                         <ClockIcon className="h-5 w-5 text-[#5A9CB5]" />
-                        <input
-                          type="time"
-                          value={entry.time}
-                          onChange={(e) => updateEntry(index, { time: e.target.value })}
-                          className="flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-50 cursor-pointer [&::-webkit-calendar-picker-indicator]:hidden"
-                        />
+                          <input
+                            type="time"
+                            value={entry.time}
+                            onChange={(e) => {
+                              setSelectedSuggestionByEntry((prev) => {
+                                if (!prev[index]) return prev
+                                const next = { ...prev }
+                                delete next[index]
+                                return next
+                              })
+                              updateEntry(index, { time: e.target.value })
+                            }}
+                            className="flex-1 bg-transparent text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-gray-50 cursor-pointer [&::-webkit-calendar-picker-indicator]:hidden"
+                          />
                       </div>
                     </div>
                   </div>
+
+                  {travelSuggestions.length > 0 && previousEntry && (
+                    <div className="rounded-2xl border border-dashed border-gray-200 bg-slate-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                      <p className="text-[0.65rem] uppercase tracking-[0.3em] text-gray-400 dark:text-gray-500">
+                        {t('create.travelSuggestionTitle')}
+                      </p>
+                        <div className="mt-2 flex flex-wrap gap-2">
+                          {travelSuggestions.map((suggestion) => {
+                            const arrival = getSuggestedArrival(previousEntry.time, suggestion.durationMinutes)
+                            if (!arrival) return null
+                            const modeLabel = t(`itinerary.mode.${suggestion.mode}`, {
+                              defaultValue: suggestion.mode
+                            })
+                            const durationLabel = formatDuration(suggestion.durationMinutes)
+                            const arrivalLabel =
+                              arrival.dayOffset > 0
+                                ? `${arrival.time} (${t('create.travelSuggestionNextDay')})`
+                                : arrival.time
+                            const suggestionKey = getSuggestionKey(suggestion)
+                            const isSelected = selectedSuggestionByEntry[index] === suggestionKey
+
+                            return (
+                              <button
+                                type="button"
+                                key={suggestionKey}
+                                onClick={() => applySuggestionToEntry(index, suggestion)}
+                                aria-pressed={isSelected}
+                                className={`rounded-full border px-3 py-1 text-xs transition ${
+                                  isSelected
+                                    ? 'border-[#5A9CB5] bg-[#5A9CB5] text-white dark:border-[#FACE68] dark:bg-[#FACE68] dark:text-gray-900'
+                                    : 'border-gray-200 bg-white text-gray-700 hover:border-[#5A9CB5] hover:text-[#5A9CB5] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200 dark:hover:text-[#FACE68]'
+                                }`}
+                              >
+                                {modeLabel} / {durationLabel} -&gt; {arrivalLabel}
+                              </button>
+                            )
+                        })}
+                      </div>
+                    </div>
+                  )}
 
                   <div>
                     <span className="sr-only">{t('create.entryMemo')}</span>
@@ -658,41 +1019,35 @@ function CreateItineraryPage() {
                     />
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setActiveEntryIndex(index)
-                      setLocationModalOpen(true)
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveEntryIndex(index)
+                        setLocationModalOpen(true)
                       setLocationSearch('')
                       setHasSearched(false)
                       setSearchResultCoords(null)
                       setSearchResultLocation('')
                       setGeocodingError('')
-                    }}
-                    aria-label={t('create.locationButtonLabel', 'Select location')}
-                    className="w-full flex items-center gap-3 rounded-2xl border border-dashed border-[#FAAC68] bg-gradient-to-r from-[#FACE68]/20 via-transparent to-[#FAAC68]/20 px-4 py-3 text-xs text-gray-500 transition hover:border-[#FA6868] hover:shadow-sm focus-visible:outline focus-visible:outline-2 focus-visible:outline-[#FAAC68] dark:border-[#FAAC68] dark:from-[#FAAC68]/20 dark:via-transparent dark:to-[#FA6868]/20 dark:hover:border-[#FA6868]"
-                  >
-                    <MapPinIcon className="h-5 w-5 text-[#FA6868] dark:text-[#FAAC68]" />
-                    <div className="text-left">
-                      <p className="text-[0.85rem] font-semibold text-gray-900 dark:text-gray-50">
-                        {entry.location || t('create.locationHint')}
-                      </p>
-                    </div>
+                      }}
+                      aria-label={t('create.locationButtonLabel', 'Select location')}
+                      className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-xs transition focus-visible:outline focus-visible:outline-2 ${
+                        hasLocation
+                          ? 'border border-gray-200 bg-white text-gray-700 hover:border-[#5A9CB5] dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200'
+                          : 'border border-dashed border-[#FAAC68] bg-gradient-to-r from-[#FACE68]/20 via-transparent to-[#FAAC68]/20 text-gray-500 hover:border-[#FA6868] hover:shadow-sm dark:border-[#FAAC68] dark:from-[#FAAC68]/20 dark:via-transparent dark:to-[#FA6868]/20 dark:hover:border-[#FA6868]'
+                      } ${hasLocation ? 'focus-visible:outline-[#5A9CB5]' : 'focus-visible:outline-[#FAAC68]'}`}
+                    >
+                      <MapPinIcon
+                        className={`h-5 w-5 ${hasLocation ? 'text-[#5A9CB5] dark:text-[#FACE68]' : 'text-[#FA6868] dark:text-[#FAAC68]'}`}
+                      />
+                      <div className="text-left">
+                        <p className="text-[0.85rem] font-semibold text-gray-900 dark:text-gray-50">
+                          {entry.location || t('create.locationHint')}
+                        </p>
+                      </div>
                   </button>
 
                   <div className="flex items-center gap-2">
-                    <div className="flex-1">
-                      <span className="sr-only">{t('create.entryCost')}</span>
-                      <input
-                        type="number"
-                        inputMode="numeric"
-                        min="0"
-                        value={entry.cost}
-                        onChange={(e) => updateEntry(index, { cost: e.target.value })}
-                        placeholder={t('create.entryCostPlaceholder')}
-                        className="w-full rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
-                      />
-                    </div>
                     <div className="w-24">
                       <span className="sr-only">{t('create.entryCurrency')}</span>
                       <select
@@ -705,6 +1060,18 @@ function CreateItineraryPage() {
                         <option value="EUR">EUR</option>
                       </select>
                     </div>
+                    <div className="flex-1">
+                      <span className="sr-only">{t('create.entryCost')}</span>
+                      <input
+                        type="number"
+                        inputMode="numeric"
+                        min="0"
+                        value={entry.cost}
+                        onChange={(e) => updateEntry(index, { cost: e.target.value })}
+                        placeholder={t('create.entryCostPlaceholder')}
+                        className="w-full rounded-2xl border border-gray-200 bg-white px-3 py-2 text-sm text-gray-900 placeholder:text-gray-400 focus:outline-none dark:border-gray-700 dark:bg-gray-900 dark:text-gray-50 [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none [-moz-appearance:textfield]"
+                      />
+                    </div>
                   </div>
                 </div>
               </div>
@@ -712,9 +1079,12 @@ function CreateItineraryPage() {
                 <div className="flex justify-center -my-3 relative z-10">
                   <button
                     type="button"
-                    onClick={() => insertEntryAt(index, selectedDateFilter)}
+                    onClick={() => handleInsertEntryClick(index)}
                     aria-label={t('create.addPanel')}
-                    className="flex h-8 w-8 items-center justify-center rounded-full border border-[#FAAC68] bg-white text-lg font-bold text-[#FA6868] transition hover:border-[#FA6868] hover:bg-[#FACE68]/20 dark:border-[#FAAC68] dark:bg-gray-900 dark:text-[#FAAC68] shadow-sm"
+                    aria-disabled={!canAddEntry}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full border border-[#FAAC68] bg-white text-lg font-bold text-[#FA6868] transition hover:border-[#FA6868] hover:bg-[#FACE68]/20 dark:border-[#FAAC68] dark:bg-gray-900 dark:text-[#FAAC68] shadow-sm ${
+                      canAddEntry ? '' : 'opacity-50 cursor-not-allowed'
+                    }`}
                   >
                     +
                   </button>
@@ -730,9 +1100,12 @@ function CreateItineraryPage() {
         <div className="mt-6 flex justify-center">
           <button
             type="button"
-            onClick={addEntry}
+            onClick={handleAddEntryClick}
             aria-label={t('create.addPanel')}
-            className="flex h-12 w-12 items-center justify-center rounded-full border border-[#FAAC68] bg-white text-2xl font-bold text-[#FA6868] transition hover:border-[#FA6868] hover:bg-[#FACE68]/20 dark:border-[#FAAC68] dark:bg-gray-900 dark:text-[#FAAC68]"
+            aria-disabled={!canAddEntry}
+            className={`flex h-12 w-12 items-center justify-center rounded-full border border-[#FAAC68] bg-white text-2xl font-bold text-[#FA6868] transition hover:border-[#FA6868] hover:bg-[#FACE68]/20 dark:border-[#FAAC68] dark:bg-gray-900 dark:text-[#FAAC68] ${
+              canAddEntry ? '' : 'opacity-50 cursor-not-allowed'
+            }`}
           >
             +
           </button>
@@ -799,14 +1172,23 @@ function CreateItineraryPage() {
                   disabled={!locationSearch.trim() || isGeocoding}
                   className="rounded-2xl bg-[#5A9CB5] px-4 py-2 text-sm font-semibold text-white disabled:bg-[#5A9CB5]/50 disabled:opacity-60 hover:bg-[#4a8ca5]"
                 >
-                  {isGeocoding ? t('create.geocodingInProgress') : t('create.searchButton')}
+                  {t('create.searchButton')}
                 </button>
               </div>
+              {locationDisplayAddress && (
+                <div className="rounded-2xl border border-dashed border-gray-200 bg-slate-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
+                  <span className="font-semibold text-gray-500 dark:text-gray-400">
+                    {t('create.locationAddressLabel')}:
+                  </span>{' '}
+                  {locationDisplayAddress}
+                </div>
+              )}
               {searchResultCoords ? (
                 <LocationPreviewMap
                   lat={searchResultCoords.lat}
                   lng={searchResultCoords.lng}
-                  locationName={locationSearch}
+                  locationName={locationDisplayName}
+                  locationAddress={locationDisplayAddress}
                 />
               ) : (
                 <div className="h-64 md:h-80 lg:h-96 rounded-2xl border border-gray-200 bg-slate-100 p-4 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 flex items-center justify-center">
@@ -828,7 +1210,7 @@ function CreateItineraryPage() {
                   disabled={!hasSearched}
                   className="rounded-2xl bg-[#5A9CB5] px-5 py-2 text-sm font-semibold text-white disabled:bg-[#5A9CB5]/50 disabled:opacity-60 hover:bg-[#4a8ca5]"
                 >
-                  {isGeocoding ? t('create.geocodingInProgress') : t('create.selectFromSearch')}
+                  {t('create.selectFromSearch')}
                 </button>
               </div>
             </div>
@@ -869,13 +1251,53 @@ function CreateItineraryPage() {
                   <label className="block text-xs font-semibold uppercase tracking-[0.3em] text-gray-400">
                     {t('create.modalPasswordLabel')}
                   </label>
-                  <input
-                    type="password"
-                    value={modalPassword}
-                    onChange={(e) => setModalPassword(e.target.value)}
-                    className="mt-1 w-full rounded-2xl border border-gray-200 bg-white px-4 py-2 text-sm text-gray-900 dark:border-gray-700 dark:bg-white dark:text-gray-900"
-                    autoFocus
-                  />
+                  <div className="relative mt-1">
+                    <input
+                      type={showModalPassword ? 'text' : 'password'}
+                      value={modalPassword}
+                      onChange={(e) => setModalPassword(e.target.value)}
+                      className="w-full rounded-2xl border border-gray-200 bg-white px-4 py-2 pr-12 text-sm text-gray-900 dark:border-gray-700 dark:bg-white dark:text-gray-900"
+                      autoFocus
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowModalPassword((prev) => !prev)}
+                      aria-label={showModalPassword ? t('create.passwordHide') : t('create.passwordShow')}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-700"
+                    >
+                      {showModalPassword ? (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-5 w-5"
+                        >
+                          <path d="M10.94 10.94a3 3 0 0 0 4.12 4.12" />
+                          <path d="M9.88 5.09A9.94 9.94 0 0 1 12 5c5.52 0 10 4.48 10 7-1.02 2.51-3.44 4.77-6.45 5.71" />
+                          <path d="M6.11 6.11C3.64 7.35 1.79 9.45 1 12c1.24 3.06 4.55 5.83 9 5.83 1.02 0 2-.13 2.93-.37" />
+                          <path d="M1 1l22 22" />
+                        </svg>
+                      ) : (
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          viewBox="0 0 24 24"
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          className="h-5 w-5"
+                        >
+                          <path d="M2.5 12s3.5-6 9.5-6 9.5 6 9.5 6-3.5 6-9.5 6-9.5-6-9.5-6z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {t('create.modalPasswordHint')}
                   </p>
@@ -973,38 +1395,19 @@ function CreateItineraryPage() {
         </div>
       )}
 
-      <div className={`fixed right-6 bottom-8 z-40 flex-col gap-3 ${locationModalOpen ? 'hidden md:flex' : 'flex'}`}>
+      <div className={`fixed right-6 bottom-8 z-40 ${locationModalOpen ? 'hidden md:flex' : 'flex'}`}>
         <button
           onClick={() => {
-            // Save current state to localStorage for preview
-            const previewData = {
-              id: 'preview',
-              title: formData.title || t('itinerary.untitled'),
-              entries: entries.filter(e => e.location.trim() || e.memo.trim()).map(e => ({
-                date: e.date,
-                time: e.time,
-                location: e.location,
-                icon: e.icon,
-                memo: e.memo,
-                cost: e.cost,
-                currency: e.currency,
-                coordinates: e.coordinates
-              }))
+            if (!formData.title.trim()) {
+              setValidationErrors({ title: true })
+              showPreviewDisabledToast()
+              return
             }
-            localStorage.setItem('preview-itinerary', JSON.stringify(previewData))
-            navigate('/preview')
+            openPreviewWithValidation()
           }}
-          className="rounded-full bg-[#5A9CB5] px-4 py-2 text-white shadow-lg transition hover:shadow-2xl hover:bg-[#4a8ca5] whitespace-nowrap text-xs font-semibold"
+          className="rounded-full bg-[#FA6868] px-5 py-3 text-white shadow-lg transition hover:shadow-2xl hover:bg-[#e85858] whitespace-nowrap text-xs font-semibold disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none disabled:hover:bg-[#FA6868]"
         >
-          {t('create.previewButton')}
-        </button>
-        <button
-          onClick={openModalWithValidation}
-          className="group relative h-14 w-14 rounded-full bg-[#FA6868] text-white shadow-lg transition hover:shadow-2xl hover:bg-[#e85858]"
-        >
-          <span className="absolute inset-0 flex items-center justify-center text-sm font-semibold">
-            {t('create.floatSave')}
-          </span>
+          {t('create.floatSave')}
         </button>
       </div>
     </div>

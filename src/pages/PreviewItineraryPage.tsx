@@ -102,6 +102,12 @@ function PreviewItineraryPage() {
     }, {} as Record<string, number>)
   }, [previewData])
 
+  const formatEntryDate = (dateString: string) => {
+    if (!dateString) return ''
+    const date = new Date(dateString)
+    return `${date.getMonth() + 1}/${date.getDate()} (${getDayOfWeek(dateString)})`
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white dark:bg-gray-900 flex items-center justify-center">
@@ -130,31 +136,39 @@ function PreviewItineraryPage() {
     <div className="min-h-screen bg-slate-50 dark:bg-slate-950 text-gray-900 dark:text-gray-50">
       <div className="container mx-auto px-4 py-8 max-w-2xl">
         <div className="mb-6">
-          <button
-            type="button"
-            onClick={() => navigate(-1)}
-            className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition"
-          >
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 24 24"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="2"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              className="h-4 w-4"
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/create')}
+              className="inline-flex items-center gap-2 text-sm text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100 transition"
             >
-              <path d="M19 12H5M12 19l-7-7 7-7" />
-            </svg>
-            {t('preview.backToEdit')}
-          </button>
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+              >
+                <path d="M19 12H5M12 19l-7-7 7-7" />
+              </svg>
+              {t('preview.backToEdit')}
+            </button>
+            <div className="flex gap-2">
+              <button
+                type="button"
+                onClick={() => navigate('/create?save=1')}
+                className="rounded-full bg-[#5A9CB5] px-4 py-2 text-xs font-semibold text-white hover:bg-[#4a8ca5]"
+              >
+                {t('preview.saveButton')}
+              </button>
+            </div>
+          </div>
         </div>
 
         <header className="mb-8">
-          <p className="text-xs uppercase tracking-[0.4em] text-[#5A9CB5] dark:text-[#FACE68] mb-2">
-            {t('preview.title')}
-          </p>
           <h1 className="text-3xl font-bold">{previewData.title}</h1>
         </header>
 
@@ -178,12 +192,12 @@ function PreviewItineraryPage() {
             const entries = groupedByDate[dateKey]
             const isUnscheduled = dateKey === 'unscheduled'
             const dateLabel = isUnscheduled
-              ? t('itinerary.timeTBD')
-              : `${new Date(dateKey).getMonth() + 1}/${new Date(dateKey).getDate()} (${getDayOfWeek(dateKey)})`
+              ? t('preview.dateUnscheduled')
+              : formatEntryDate(dateKey)
 
             return (
               <div key={dateKey} className="space-y-3">
-                <h3 className="text-sm font-semibold uppercase tracking-wide text-[#5A9CB5] dark:text-[#FACE68]">
+                <h3 className="text-lg md:text-xl font-semibold tracking-wide text-[#5A9CB5] dark:text-[#FACE68]">
                   {dateLabel}
                 </h3>
                 <div className="space-y-3">
@@ -192,19 +206,16 @@ function PreviewItineraryPage() {
                       key={idx}
                       className="rounded-2xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-800 p-4 shadow-sm"
                     >
+                      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                        {entry.time ||
+                          (entry.date ? formatEntryDate(entry.date) : t('preview.dateUnscheduled'))}
+                      </div>
                       <div className="flex items-start gap-3">
                         <span className="text-2xl">{entry.icon}</span>
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between gap-2">
-                            <h4 className="text-lg font-semibold truncate">
-                              {entry.location || t('home.noLocation')}
-                            </h4>
-                            {entry.time && (
-                              <span className="text-sm text-gray-500 dark:text-gray-400 whitespace-nowrap">
-                                {entry.time}
-                              </span>
-                            )}
-                          </div>
+                          <h4 className="text-lg font-semibold truncate">
+                            {entry.location || t('home.noLocation')}
+                          </h4>
                           {entry.memo && (
                             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
                               {entry.memo}
@@ -213,11 +224,6 @@ function PreviewItineraryPage() {
                           {entry.cost && parseFloat(entry.cost) > 0 && (
                             <p className="mt-2 text-sm font-semibold text-[#FA6868]">
                               {formatCurrency(parseFloat(entry.cost), entry.currency || 'JPY')}
-                            </p>
-                          )}
-                          {entry.coordinates && (
-                            <p className="mt-1 text-xs text-gray-400">
-                              📍 {entry.coordinates.lat.toFixed(4)}, {entry.coordinates.lng.toFixed(4)}
                             </p>
                           )}
                         </div>

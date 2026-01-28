@@ -271,7 +271,7 @@ function ItineraryPage() {
         id: `local-${Date.now()}`,
         date: timestamp,
         time: newItemForm.time || null,
-        title: newItemForm.title || t('itinerary.untitled', 'Untitled place'),
+        title: newItemForm.title.trim(),
         location: newItemForm.location,
         address: newItemForm.location,
         coordinates: null,
@@ -397,7 +397,33 @@ function ItineraryPage() {
   const renderItems = () => {
     if (dayKeys.length === 0) {
       return (
-        <p className="text-sm text-gray-600 dark:text-gray-400">{t('itinerary.noItems')}</p>
+        <div className="space-y-6">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <h3 className="text-sm font-semibold uppercase tracking-wide text-blue-600 dark:text-blue-400">
+                {t('itinerary.timeTBD', 'Time TBD')}
+              </h3>
+              <span className="text-xs text-gray-500 dark:text-gray-400">
+                {t('itinerary.itemsCount', { count: 1 })}
+              </span>
+            </div>
+            <div className="space-y-4">
+              <article className="bg-white dark:bg-gray-900 border border-gray-100 dark:border-gray-800 rounded-2xl p-4 shadow-sm">
+                <div className="flex flex-wrap justify-between gap-4">
+                  <div>
+                    <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                      {t('itinerary.timeTBD', 'Time TBD')}
+                    </p>
+                    <h4 className="text-xl font-semibold text-gray-900 dark:text-gray-50" />
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      {t('home.noLocation')}
+                    </p>
+                  </div>
+                </div>
+              </article>
+            </div>
+          </div>
+        </div>
       )
     }
 

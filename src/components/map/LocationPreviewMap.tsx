@@ -18,9 +18,10 @@ interface LocationPreviewMapProps {
   lat: number
   lng: number
   locationName?: string
+  locationAddress?: string
 }
 
-export default function LocationPreviewMap({ lat, lng, locationName }: LocationPreviewMapProps) {
+export default function LocationPreviewMap({ lat, lng, locationName, locationAddress }: LocationPreviewMapProps) {
   const mapRef = useRef<L.Map | null>(null)
   const mapContainerRef = useRef<HTMLDivElement>(null)
 
@@ -51,8 +52,12 @@ export default function LocationPreviewMap({ lat, lng, locationName }: LocationP
     // Add marker
     const marker = L.marker([lat, lng]).addTo(map)
 
-    if (locationName) {
-      marker.bindPopup(`<div style="font-weight: 600;">${locationName}</div>`).openPopup()
+    if (locationName || locationAddress) {
+      const popupLines = [
+        locationName ? `<div style="font-weight: 600;">${locationName}</div>` : '',
+        locationAddress ? `<div style="font-size: 12px; color: #666;">${locationAddress}</div>` : '',
+      ].filter(Boolean)
+      marker.bindPopup(popupLines.join('')).openPopup()
     }
 
     mapRef.current = map
@@ -63,7 +68,7 @@ export default function LocationPreviewMap({ lat, lng, locationName }: LocationP
         mapRef.current = null
       }
     }
-  }, [lat, lng, locationName])
+  }, [lat, lng, locationName, locationAddress])
 
   return (
     <div

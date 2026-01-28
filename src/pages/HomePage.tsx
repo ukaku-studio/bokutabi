@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import { useTheme } from '../context/ThemeContext'
 import { useState, useEffect } from 'react'
@@ -34,6 +34,8 @@ function HomePage() {
   const { t, i18n } = useTranslation()
   const { theme, setTheme } = useTheme()
   const [savedItineraries, setSavedItineraries] = useState<SavedItinerary[]>([])
+  const [restoreModalOpen, setRestoreModalOpen] = useState(false)
+  const navigate = useNavigate()
 
   useEffect(() => {
     const stored = localStorage.getItem('created-itineraries')
@@ -41,6 +43,26 @@ function HomePage() {
       setSavedItineraries(JSON.parse(stored))
     }
   }, [])
+
+  const handleCreateClick = () => {
+    const draft = localStorage.getItem('preview-itinerary')
+    if (draft) {
+      setRestoreModalOpen(true)
+      return
+    }
+    navigate('/create')
+  }
+
+  const handleRestoreYes = () => {
+    setRestoreModalOpen(false)
+    navigate('/create')
+  }
+
+  const handleRestoreNo = () => {
+    localStorage.removeItem('preview-itinerary')
+    setRestoreModalOpen(false)
+    navigate('/create')
+  }
 
   return (
     <div className="min-h-screen bg-white dark:bg-gray-950 text-gray-900 dark:text-gray-50">
@@ -57,12 +79,13 @@ function HomePage() {
               {t('home.description')}
             </p>
             <div className="flex flex-wrap gap-3">
-              <Link
-                to="/create"
+              <button
+                type="button"
+                onClick={handleCreateClick}
                 className="px-6 py-3 rounded-full bg-gradient-to-r from-[#FA6868] to-[#FAAC68] text-white font-semibold text-sm hover:opacity-90 transition"
               >
                 {t('home.createButton')}
-              </Link>
+              </button>
             </div>
           </div>
 
@@ -183,6 +206,40 @@ function HomePage() {
           )}
         </section>
       </div>
+
+      {restoreModalOpen && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 px-4"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) {
+              setRestoreModalOpen(false)
+            }
+          }}
+        >
+          <div className="w-full max-w-sm rounded-2xl bg-white dark:bg-gray-900 p-6 shadow-xl">
+            <h3 className="text-lg font-semibold mb-2">{t('home.restoreDraftTitle')}</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              {t('home.restoreDraftMessage')}
+            </p>
+            <div className="flex gap-3 justify-end">
+              <button
+                type="button"
+                onClick={handleRestoreNo}
+                className="px-4 py-2 text-sm font-semibold text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+              >
+                {t('home.restoreDraftNo')}
+              </button>
+              <button
+                type="button"
+                onClick={handleRestoreYes}
+                className="px-4 py-2 text-sm font-semibold text-white bg-[#5A9CB5] rounded-full hover:bg-[#4a8ca5]"
+              >
+                {t('home.restoreDraftYes')}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
