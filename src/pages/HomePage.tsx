@@ -16,13 +16,6 @@ type SavedItinerary = {
   createdAt: number
 }
 
-const features = [
-  'home.featureShare',
-  'home.featureOffline',
-  'home.featureCollaborate',
-  'home.featureAI'
-]
-
 const getDayOfWeek = (dateString: string): string => {
   if (!dateString) return ''
   const date = new Date(dateString)
@@ -130,7 +123,30 @@ function HomePage() {
                         : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}
                   >
-                    {t('settings.light')}
+                    <span className="inline-flex items-center gap-2">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-4 w-4"
+                        aria-hidden="true"
+                      >
+                        <circle cx="12" cy="12" r="5" />
+                        <line x1="12" y1="1" x2="12" y2="3" />
+                        <line x1="12" y1="21" x2="12" y2="23" />
+                        <line x1="4.22" y1="4.22" x2="5.64" y2="5.64" />
+                        <line x1="18.36" y1="18.36" x2="19.78" y2="19.78" />
+                        <line x1="1" y1="12" x2="3" y2="12" />
+                        <line x1="21" y1="12" x2="23" y2="12" />
+                        <line x1="4.22" y1="19.78" x2="5.64" y2="18.36" />
+                        <line x1="18.36" y1="5.64" x2="19.78" y2="4.22" />
+                      </svg>
+                      {t('settings.light')}
+                    </span>
                   </button>
                   <button
                     onClick={() => setTheme('dark')}
@@ -140,28 +156,28 @@ function HomePage() {
                         : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'
                     }`}
                   >
-                    {t('settings.dark')}
+                    <span className="inline-flex items-center gap-2">
+                      <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="2"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        className="h-4 w-4"
+                        aria-hidden="true"
+                      >
+                        <path d="M21 12.79A9 9 0 1 1 11.21 3a7 7 0 0 0 9.79 9.79z" />
+                      </svg>
+                      {t('settings.dark')}
+                    </span>
                   </button>
                 </div>
               </div>
             </div>
           </div>
         </header>
-
-        <section>
-          <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-            {features.map((featureKey) => (
-              <article
-                key={featureKey}
-                className="rounded-2xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 shadow-sm"
-              >
-                <p className="text-base font-semibold text-gray-900 dark:text-gray-50">
-                  {t(featureKey)}
-                </p>
-              </article>
-            ))}
-          </div>
-        </section>
 
         <section className="space-y-4">
           <div className="flex flex-wrap items-baseline justify-between gap-3">

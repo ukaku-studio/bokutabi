@@ -831,7 +831,8 @@ function CreateItineraryPage() {
               strokeLinejoin="round"
               className="h-4 w-4"
             >
-              <path d="M19 12H5M12 19l-7-7 7-7" />
+              <line x1="19" y1="12" x2="5" y2="12" />
+              <polyline points="12 19 5 12 12 5" />
             </svg>
             {t('common.backHome')}
           </button>
@@ -1227,7 +1228,20 @@ function CreateItineraryPage() {
                 }}
                 className="text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
               >
-                ×
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
             <div className="mt-5 space-y-4">
@@ -1319,7 +1333,20 @@ function CreateItineraryPage() {
                 }}
                 className="text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"
               >
-                ×
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="h-4 w-4"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
               </button>
             </div>
 

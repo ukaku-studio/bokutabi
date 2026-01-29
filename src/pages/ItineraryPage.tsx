@@ -542,9 +542,23 @@ function ItineraryPage() {
             )}
             <Link
               to="/"
-              className="text-sm font-medium text-blue-600 hover:underline dark:text-blue-300"
+              className="inline-flex items-center gap-2 text-sm font-medium text-blue-600 hover:underline dark:text-blue-300"
             >
-              ← {t('common.backHome')}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                className="h-4 w-4"
+                aria-hidden="true"
+              >
+                <line x1="19" y1="12" x2="5" y2="12" />
+                <polyline points="12 19 5 12 12 5" />
+              </svg>
+              {t('common.backHome')}
             </Link>
           </div>
         </div>
