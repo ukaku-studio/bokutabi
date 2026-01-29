@@ -191,7 +191,7 @@ const MapPinIcon = ({ className }: { className?: string }) => (
 )
 
 function CreateItineraryPage() {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const navigate = useNavigate()
   const location = useLocation()
   const { isDark } = useTheme()
