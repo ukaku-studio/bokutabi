@@ -9,16 +9,12 @@ export async function geocodeAddress(address: string, language?: string): Promis
   url.searchParams.set('format', 'json')
   url.searchParams.set('q', address)
   url.searchParams.set('limit', '1')
+  url.searchParams.set('addressdetails', '1')
   if (language) {
     url.searchParams.set('accept-language', language)
   }
 
-  const response = await fetch(url.toString(), {
-    headers: {
-      'User-Agent': 'BOKUTABI/1.0 (Travel Itinerary Planner)',
-      ...(language ? { 'Accept-Language': language } : {})
-    }
-  })
+  const response = await fetch(url.toString())
 
   if (!response.ok) {
     throw new Error(`Geocoding request failed: ${response.status}`)
@@ -26,7 +22,7 @@ export async function geocodeAddress(address: string, language?: string): Promis
 
   const data = await response.json()
 
-  if (!data || data.length === 0) {
+  if (!Array.isArray(data) || data.length === 0) {
     throw new Error('No results found for this location')
   }
 

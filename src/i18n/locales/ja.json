@@ -188,6 +188,7 @@
   "preview": {
     "title": "プレビュー",
     "dateUnscheduled": "日付未設定",
+    "timeUnscheduled": "時刻未設定",
     "backToEdit": "修正する",
     "saveButton": "保存する",
     "totalCost": "合計金額"

@@ -208,7 +208,7 @@ function PreviewItineraryPage() {
                     >
                       <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                         {entry.time ||
-                          (entry.date ? formatEntryDate(entry.date) : t('preview.dateUnscheduled'))}
+                          (entry.date ? formatEntryDate(entry.date) : t('preview.timeUnscheduled'))}
                       </div>
                       <div className="flex items-start gap-3">
                         <span className="text-2xl">{entry.icon}</span>
@@ -241,6 +241,16 @@ function PreviewItineraryPage() {
             <p className="text-gray-500">{t('itinerary.noItems')}</p>
           </div>
         )}
+      </div>
+
+      <div className="fixed right-6 bottom-8 z-40">
+        <button
+          type="button"
+          onClick={() => navigate('/create?save=1')}
+          className="rounded-full bg-[#FA6868] px-5 py-3 text-white shadow-lg transition hover:shadow-2xl hover:bg-[#e85858] whitespace-nowrap text-xs font-semibold"
+        >
+          {t('preview.saveButton')}
+        </button>
       </div>
     </div>
   )

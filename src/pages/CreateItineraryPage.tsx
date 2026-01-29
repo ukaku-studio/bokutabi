@@ -235,7 +235,10 @@ function CreateItineraryPage() {
 
   const normalizeLanguage = (language: string | undefined) => {
     if (!language) return ''
-    return language.split(',')[0].trim()
+    const normalized = language.split(',')[0].trim()
+    if (normalized.toLowerCase().startsWith('ja')) return 'ja'
+    if (normalized.toLowerCase().startsWith('en')) return 'en'
+    return 'en'
   }
 
   const getPreferredLanguage = () => {
@@ -415,7 +418,7 @@ function CreateItineraryPage() {
     const previewData = {
       id: 'preview',
       title: formData.title,
-      entries: entries.filter(e => e.location.trim() || e.memo.trim()).map(e => ({
+      entries: entries.map(e => ({
         date: e.date,
         time: e.time,
         location: e.location,
@@ -1132,11 +1135,25 @@ function CreateItineraryPage() {
                     onClick={() => handleInsertEntryClick(index)}
                     aria-label={t('create.addPanel')}
                     aria-disabled={!canAddEntry}
-                    className={`flex h-8 w-8 items-center justify-center rounded-full border border-[#FAAC68] bg-white text-lg font-bold text-[#FA6868] transition hover:border-[#FA6868] hover:bg-[#FACE68]/20 dark:border-[#FAAC68] dark:bg-gray-900 dark:text-[#FAAC68] shadow-sm ${
+                    className={`flex h-8 w-8 items-center justify-center rounded-full bg-white text-[#FA6868] transition hover:bg-[#FACE68]/20 dark:bg-gray-900 dark:text-[#FAAC68] shadow-sm ${
                       canAddEntry ? '' : 'opacity-50 cursor-not-allowed'
                     }`}
                   >
-                    +
+                    <svg
+                      xmlns="http://www.w3.org/2000/svg"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      className="h-full w-full"
+                      aria-hidden="true"
+                    >
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="12" y1="8" x2="12" y2="16" />
+                      <line x1="8" y1="12" x2="16" y2="12" />
+                    </svg>
                   </button>
                 </div>
               )}
@@ -1153,11 +1170,25 @@ function CreateItineraryPage() {
             onClick={handleAddEntryClick}
             aria-label={t('create.addPanel')}
             aria-disabled={!canAddEntry}
-            className={`flex h-12 w-12 items-center justify-center rounded-full border border-[#FAAC68] bg-white text-2xl font-bold text-[#FA6868] transition hover:border-[#FA6868] hover:bg-[#FACE68]/20 dark:border-[#FAAC68] dark:bg-gray-900 dark:text-[#FAAC68] ${
+            className={`flex h-12 w-12 items-center justify-center rounded-full bg-white text-[#FA6868] transition hover:bg-[#FACE68]/20 dark:bg-gray-900 dark:text-[#FAAC68] ${
               canAddEntry ? '' : 'opacity-50 cursor-not-allowed'
             }`}
           >
-            +
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              className="h-full w-full"
+              aria-hidden="true"
+            >
+              <circle cx="12" cy="12" r="10" />
+              <line x1="12" y1="8" x2="12" y2="16" />
+              <line x1="8" y1="12" x2="16" y2="12" />
+            </svg>
           </button>
         </div>
 
