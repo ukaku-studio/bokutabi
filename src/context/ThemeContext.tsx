@@ -12,7 +12,8 @@ const ThemeContext = createContext<ThemeContextType | undefined>(undefined)
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const [theme, setTheme] = useState<Theme>(() => {
-    const saved = localStorage.getItem('theme') as Theme | 'auto' | null
+    const savedRaw = localStorage.getItem('theme')
+    const saved = savedRaw as Theme | 'auto' | null
     // Migrate existing 'auto' users
     if (saved === 'auto') {
       const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
@@ -20,7 +21,11 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       localStorage.setItem('theme', migrated)
       return migrated
     }
-    return (saved as Theme) || 'light'
+    if (saved === 'light' || saved === 'dark') {
+      return saved
+    }
+    const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+    return prefersDark ? 'dark' : 'light'
   })
 
   const [isDark, setIsDark] = useState(theme === 'dark')

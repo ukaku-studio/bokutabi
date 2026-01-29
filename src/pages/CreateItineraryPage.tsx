@@ -119,18 +119,27 @@ const getAutoEmoji = (location: string): string | null => {
   return null
 }
 
-const splitLocationDisplay = (displayName: string): { name: string; address: string } => {
-  if (!displayName) {
-    return { name: '', address: '' }
+  const splitLocationDisplay = (displayName: string): { name: string; address: string } => {
+    if (!displayName) {
+      return { name: '', address: '' }
+    }
+    const parts = displayName
+      .split(',')
+      .map(part => part.trim())
+      .filter(Boolean)
+    if (parts.length <= 1) {
+      return { name: displayName.trim(), address: '' }
+    }
+    return { name: parts[0], address: parts.slice(1).join(', ') }
   }
+
+const shouldShowAddress = (displayName: string): boolean => {
+  if (!displayName) return false
   const parts = displayName
     .split(',')
     .map(part => part.trim())
     .filter(Boolean)
-  if (parts.length <= 1) {
-    return { name: displayName.trim(), address: '' }
-  }
-  return { name: parts[0], address: parts.slice(1).join(', ') }
+  return parts.length <= 1
 }
 
 const CalendarIcon = ({ className }: { className?: string }) => (
@@ -222,6 +231,46 @@ function CreateItineraryPage() {
   )
   const locationDisplayName = locationDisplay.name || locationSearch
   const locationDisplayAddress = locationDisplay.address
+  const showLocationAddress = shouldShowAddress(searchResultLocation) && !!locationDisplayAddress
+
+  const normalizeLanguage = (language: string | undefined) => {
+    if (!language) return ''
+    return language.split(',')[0].trim()
+  }
+
+  const getPreferredLanguage = () => {
+    if (i18n.language) {
+      return normalizeLanguage(i18n.language)
+    }
+    if (typeof navigator !== 'undefined' && navigator.language) {
+      return normalizeLanguage(navigator.language)
+    }
+    return 'ja'
+  }
+
+  const getFallbackLanguages = (primary: string) => {
+    if (primary.startsWith('ja')) {
+      return ['en']
+    }
+    return ['ja']
+  }
+
+  const geocodeWithFallback = async (query: string) => {
+    const primary = getPreferredLanguage()
+    try {
+      return await geocodeAddress(query, primary)
+    } catch {
+      const fallbacks = getFallbackLanguages(primary)
+      for (const language of fallbacks) {
+        try {
+          return await geocodeAddress(query, language)
+        } catch {
+          // try next fallback
+        }
+      }
+      return await geocodeAddress(query)
+    }
+  }
 
   const formatDuration = (minutes: number): string => {
     const hours = Math.floor(minutes / 60)
@@ -325,8 +374,9 @@ function CreateItineraryPage() {
     if (locationModalOpen && activeEntryIndex !== null) {
       const currentEntry = entries[activeEntryIndex]
       if (currentEntry.location && currentEntry.location.trim()) {
-        // Set the location search value
-        setLocationSearch(currentEntry.location)
+        // Set the location search value to official name when available
+        const officialName = splitLocationDisplay(currentEntry.location).name || currentEntry.location
+        setLocationSearch(officialName)
         setSearchResultLocation(currentEntry.location)
         // Auto-trigger search if coordinates exist
         if (currentEntry.coordinates) {
@@ -338,7 +388,7 @@ function CreateItineraryPage() {
             setIsGeocoding(true)
             setGeocodingError('')
             try {
-              const result = await geocodeAddress(currentEntry.location)
+              const result = await geocodeWithFallback(currentEntry.location)
               setSearchResultCoords({ lat: result.lat, lng: result.lng })
               setSearchResultLocation(result.formattedAddress)
               setHasSearched(true)
@@ -421,7 +471,7 @@ function CreateItineraryPage() {
     setSearchResultCoords(null)
     setSearchResultLocation('')
     try {
-      const result = await geocodeAddress(query)
+      const result = await geocodeWithFallback(query)
       setSearchResultCoords({ lat: result.lat, lng: result.lng })
       setSearchResultLocation(result.formattedAddress)
       setHasSearched(true)
@@ -1175,7 +1225,7 @@ function CreateItineraryPage() {
                   {t('create.searchButton')}
                 </button>
               </div>
-              {locationDisplayAddress && (
+              {showLocationAddress && (
                 <div className="rounded-2xl border border-dashed border-gray-200 bg-slate-50 px-3 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300">
                   <span className="font-semibold text-gray-500 dark:text-gray-400">
                     {t('create.locationAddressLabel')}:
@@ -1188,7 +1238,7 @@ function CreateItineraryPage() {
                   lat={searchResultCoords.lat}
                   lng={searchResultCoords.lng}
                   locationName={locationDisplayName}
-                  locationAddress={locationDisplayAddress}
+                  locationAddress={showLocationAddress ? locationDisplayAddress : undefined}
                 />
               ) : (
                 <div className="h-64 md:h-80 lg:h-96 rounded-2xl border border-gray-200 bg-slate-100 p-4 text-center text-sm text-gray-500 dark:border-gray-700 dark:bg-gray-900 flex items-center justify-center">
