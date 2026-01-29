@@ -1,5 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useLocation, useNavigate, useParams } from 'react-router-dom'
 import { format, parseISO } from 'date-fns'
 import { enUS } from 'date-fns/locale/en-US'
 import { ja } from 'date-fns/locale/ja'
@@ -82,12 +82,18 @@ const formatDateISO = (iso: string) => iso.split('T')[0]
 
 function ItineraryPage() {
   const { t, i18n } = useTranslation()
+  const location = useLocation()
+  const navigate = useNavigate()
   const { id } = useParams<{ id: string }>()
   const [itinerary, setItinerary] = useState<Itinerary | null>(null)
   const [items, setItems] = useState<ItineraryItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [copyMessage, setCopyMessage] = useState('')
+  const [authError, setAuthError] = useState('')
+  const [hasAuth, setHasAuth] = useState(() =>
+    Boolean(id && localStorage.getItem(`auth-${id}`))
+  )
   const [formFeedback, setFormFeedback] = useState<FormFeedback | null>(null)
   const [newItemForm, setNewItemForm] = useState<ItemForm>(defaultFormState)
   const [editForm, setEditForm] = useState<ItemForm>(defaultFormState)
@@ -156,6 +162,66 @@ function ItineraryPage() {
       isMounted = false
     }
   }, [id, t])
+
+  useEffect(() => {
+    if (!id) {
+      setHasAuth(false)
+      return
+    }
+
+    setHasAuth(Boolean(localStorage.getItem(`auth-${id}`)))
+  }, [id])
+
+  useEffect(() => {
+    if (!id) return
+
+    const params = new URLSearchParams(location.search)
+    const password = params.get('pw') || params.get('password')
+    if (!password) {
+      setAuthError('')
+      return
+    }
+
+    const removePasswordFromUrl = () => {
+      params.delete('pw')
+      params.delete('password')
+      const search = params.toString()
+      navigate(
+        {
+          pathname: location.pathname,
+          search: search ? `?${search}` : ''
+        },
+        { replace: true }
+      )
+    }
+
+    if (localStorage.getItem(`auth-${id}`)) {
+      setHasAuth(true)
+      setAuthError('')
+      removePasswordFromUrl()
+      return
+    }
+
+    let isActive = true
+    setAuthError('')
+
+    api
+      .authenticateItinerary(id, password)
+      .then(({ token }) => {
+        if (!isActive) return
+        localStorage.setItem(`auth-${id}`, token)
+        setHasAuth(true)
+        removePasswordFromUrl()
+      })
+      .catch(() => {
+        if (!isActive) return
+        setAuthError(t('itinerary.authFailed', 'Unable to authenticate with the link password.'))
+      })
+
+    return () => {
+      isActive = false
+    }
+  }, [id, location.pathname, location.search, navigate, t])
 
   useEffect(() => {
     if (itinerary) {
@@ -532,7 +598,7 @@ function ItineraryPage() {
             {itinerary ? itinerary.title : t('itinerary.loadingTitle', 'Itinerary')}
           </h1>
           <div className="flex items-center gap-4">
-            {id && localStorage.getItem(`auth-${id}`) && (
+            {id && hasAuth && (
               <Link
                 to={`/create?edit=${id}`}
                 className="px-4 py-2 rounded-full bg-[#5A9CB5] text-white text-sm font-semibold hover:bg-[#4a8ca5]"
@@ -651,6 +717,9 @@ function ItineraryPage() {
                   </div>
                   {copyMessage && (
                     <p className="text-xs text-gray-500 dark:text-gray-400">{copyMessage}</p>
+                  )}
+                  {authError && (
+                    <p className="text-xs text-red-600 dark:text-red-400">{authError}</p>
                   )}
                   <p className="text-xs text-gray-500 dark:text-gray-400">
                     {t('itinerary.passwordHint')}

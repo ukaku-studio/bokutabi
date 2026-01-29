@@ -1,4 +1,4 @@
-import { FormEvent, useRef, useState, useEffect, Fragment, useMemo } from 'react'
+import { FormEvent, useRef, useState, useEffect, Fragment, useMemo, useCallback } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { useTranslation } from 'react-i18next'
 import EmojiPicker, { EmojiClickData, Theme } from 'emoji-picker-react'
@@ -11,6 +11,8 @@ type StopEntry = {
   date: string
   time: string
   location: string
+  locationName: string
+  locationAddress: string
   coordinates: { lat: number; lng: number } | null
   memo: string
   icon: string
@@ -23,6 +25,23 @@ type TravelMode = 'walking' | 'transit' | 'driving'
 type TravelSuggestion = {
   mode: TravelMode
   durationMinutes: number
+}
+
+type Coordinates = { lat: number; lng: number }
+
+const normalizeLanguage = (language: string | undefined) => {
+  if (!language) return ''
+  const normalized = language.split(',')[0].trim()
+  if (normalized.toLowerCase().startsWith('ja')) return 'ja'
+  if (normalized.toLowerCase().startsWith('en')) return 'en'
+  return 'en'
+}
+
+const getFallbackLanguages = (primary: string) => {
+  if (primary.startsWith('ja')) {
+    return ['en']
+  }
+  return ['ja']
 }
 
 const getDayOfWeek = (dateString: string): string => {
@@ -76,10 +95,73 @@ const getMockTravelSuggestions = (from: string, to: string): TravelSuggestion[] 
   ]
 }
 
+const OSRM_BASE_URL = 'https://router.project-osrm.org/route/v1'
+
+const buildOsrmRouteUrl = (profile: 'driving' | 'walking', from: Coordinates, to: Coordinates) => {
+  const url = new URL(
+    `${OSRM_BASE_URL}/${profile}/${from.lng},${from.lat};${to.lng},${to.lat}`
+  )
+  url.searchParams.set('overview', 'false')
+  return url.toString()
+}
+
+const fetchOsrmDurationMinutes = async (
+  profile: 'driving' | 'walking',
+  from: Coordinates,
+  to: Coordinates
+): Promise<number | null> => {
+  try {
+    const response = await fetch(buildOsrmRouteUrl(profile, from, to))
+    if (!response.ok) {
+      return null
+    }
+    const data = await response.json()
+    if (!data || data.code !== 'Ok' || !Array.isArray(data.routes) || data.routes.length === 0) {
+      return null
+    }
+    const durationSeconds = data.routes[0]?.duration
+    if (typeof durationSeconds !== 'number' || Number.isNaN(durationSeconds)) {
+      return null
+    }
+    return Math.max(1, Math.round(durationSeconds / 60))
+  } catch {
+    return null
+  }
+}
+
+const getOsrmTravelSuggestions = async (
+  from: Coordinates,
+  to: Coordinates
+): Promise<TravelSuggestion[]> => {
+  const [drivingMinutes, walkingMinutes] = await Promise.all([
+    fetchOsrmDurationMinutes('driving', from, to),
+    fetchOsrmDurationMinutes('walking', from, to)
+  ])
+
+  const suggestions: TravelSuggestion[] = []
+
+  if (walkingMinutes !== null) {
+    suggestions.push({ mode: 'walking', durationMinutes: walkingMinutes })
+  }
+
+  if (drivingMinutes !== null) {
+    const transitMinutes = Math.max(drivingMinutes + 5, Math.round(drivingMinutes * 1.3))
+    suggestions.push({ mode: 'transit', durationMinutes: transitMinutes })
+    suggestions.push({ mode: 'driving', durationMinutes: drivingMinutes })
+  }
+
+  return suggestions
+}
+
+const getRouteKey = (from: Coordinates, to: Coordinates) =>
+  `${from.lat.toFixed(6)},${from.lng.toFixed(6)}|${to.lat.toFixed(6)},${to.lng.toFixed(6)}`
+
 const createEmptyEntry = (): StopEntry => ({
   date: '',
   time: '',
   location: '',
+  locationName: '',
+  locationAddress: '',
   coordinates: null,
   memo: '',
   icon: '📍',
@@ -91,12 +173,23 @@ const normalizeEntry = (entry: Partial<StopEntry>): StopEntry => ({
   date: entry.date ?? '',
   time: entry.time ?? '',
   location: entry.location ?? '',
+  locationName: entry.locationName ?? '',
+  locationAddress: entry.locationAddress ?? '',
   coordinates: entry.coordinates ?? null,
   memo: entry.memo ?? '',
   icon: entry.icon ?? '📍',
   cost: entry.cost ?? '',
   currency: entry.currency ?? 'JPY'
 })
+
+const getEntryLocationLabel = (entry: Partial<StopEntry>): string => {
+  return (
+    entry.locationName?.trim() ||
+    entry.locationAddress?.trim() ||
+    entry.location?.trim() ||
+    ''
+  )
+}
 
 const getAutoEmoji = (location: string): string | null => {
   const lowerLocation = location.toLowerCase()
@@ -119,27 +212,18 @@ const getAutoEmoji = (location: string): string | null => {
   return null
 }
 
-  const splitLocationDisplay = (displayName: string): { name: string; address: string } => {
-    if (!displayName) {
-      return { name: '', address: '' }
-    }
-    const parts = displayName
-      .split(',')
-      .map(part => part.trim())
-      .filter(Boolean)
-    if (parts.length <= 1) {
-      return { name: displayName.trim(), address: '' }
-    }
-    return { name: parts[0], address: parts.slice(1).join(', ') }
+const splitLocationDisplay = (displayName: string): { name: string; address: string } => {
+  if (!displayName) {
+    return { name: '', address: '' }
   }
-
-const shouldShowAddress = (displayName: string): boolean => {
-  if (!displayName) return false
   const parts = displayName
     .split(',')
     .map(part => part.trim())
     .filter(Boolean)
-  return parts.length <= 1
+  if (parts.length <= 1) {
+    return { name: displayName.trim(), address: '' }
+  }
+  return { name: parts[0], address: parts.slice(1).join(', ') }
 }
 
 const CalendarIcon = ({ className }: { className?: string }) => (
@@ -221,45 +305,28 @@ function CreateItineraryPage() {
   const [deleteConfirmIndex, setDeleteConfirmIndex] = useState<number | null>(null)
   const [geocodingError, setGeocodingError] = useState<string>('')
   const [selectedSuggestionByEntry, setSelectedSuggestionByEntry] = useState<Record<number, string>>({})
+  const [routeSuggestionsByKey, setRouteSuggestionsByKey] = useState<Record<string, TravelSuggestion[]>>({})
   const [pendingSaveOpen, setPendingSaveOpen] = useState(false)
+  const routeSuggestionCache = useRef<Record<string, TravelSuggestion[] | null>>({})
+  const routeSuggestionInFlight = useRef<Set<string>>(new Set())
   const [hasSearched, setHasSearched] = useState(false)
   const [searchResultCoords, setSearchResultCoords] = useState<{ lat: number; lng: number } | null>(null)
   const [searchResultLocation, setSearchResultLocation] = useState<string>('')
+  const [searchResultName, setSearchResultName] = useState<string>('')
   const locationDisplay = useMemo(
     () => splitLocationDisplay(searchResultLocation),
     [searchResultLocation]
   )
-  const locationDisplayName = locationDisplay.name || locationSearch
+  const locationDisplayName = searchResultName || locationDisplay.name || locationSearch
   const locationDisplayAddress = locationDisplay.address
-  const showLocationAddress = shouldShowAddress(searchResultLocation) && !!locationDisplayAddress
+  const showLocationAddress = !searchResultName && !!locationDisplayAddress
 
-  const normalizeLanguage = (language: string | undefined) => {
-    if (!language) return ''
-    const normalized = language.split(',')[0].trim()
-    if (normalized.toLowerCase().startsWith('ja')) return 'ja'
-    if (normalized.toLowerCase().startsWith('en')) return 'en'
-    return 'en'
-  }
-
-  const getPreferredLanguage = () => {
-    if (i18n.language) {
-      return normalizeLanguage(i18n.language)
-    }
-    if (typeof navigator !== 'undefined' && navigator.language) {
-      return normalizeLanguage(navigator.language)
-    }
-    return 'ja'
-  }
-
-  const getFallbackLanguages = (primary: string) => {
-    if (primary.startsWith('ja')) {
-      return ['en']
-    }
-    return ['ja']
-  }
-
-  const geocodeWithFallback = async (query: string) => {
-    const primary = getPreferredLanguage()
+  const geocodeWithFallback = useCallback(async (query: string) => {
+    const primary = i18n.language
+      ? normalizeLanguage(i18n.language)
+      : typeof navigator !== 'undefined' && navigator.language
+        ? normalizeLanguage(navigator.language)
+        : 'ja'
     try {
       return await geocodeAddress(query, primary)
     } catch {
@@ -273,7 +340,7 @@ function CreateItineraryPage() {
       }
       return await geocodeAddress(query)
     }
-  }
+  }, [i18n.language])
 
   const formatDuration = (minutes: number): string => {
     const hours = Math.floor(minutes / 60)
@@ -292,6 +359,8 @@ function CreateItineraryPage() {
       entry.date !== '' ||
       entry.time !== '' ||
       entry.location !== '' ||
+      entry.locationName !== '' ||
+      entry.locationAddress !== '' ||
       entry.memo !== '' ||
       entry.icon !== '📍' ||
       entry.cost !== '' ||
@@ -372,15 +441,61 @@ function CreateItineraryPage() {
     setSelectedSuggestionByEntry({})
   }, [entries])
 
+  useEffect(() => {
+    entries.forEach((entry, index) => {
+      const previousEntry = entries[index - 1]
+      if (!previousEntry?.coordinates || !entry.coordinates) return
+
+      const previousLabel = getEntryLocationLabel(previousEntry)
+      const currentLabel = getEntryLocationLabel(entry)
+      if (!previousLabel || !currentLabel) return
+
+      const routeKey = getRouteKey(previousEntry.coordinates, entry.coordinates)
+      const cached = routeSuggestionCache.current[routeKey]
+
+      if (cached) {
+        setRouteSuggestionsByKey((prev) => ({
+          ...prev,
+          [routeKey]: cached
+        }))
+        return
+      }
+
+      if (cached === null || routeSuggestionInFlight.current.has(routeKey)) {
+        return
+      }
+
+      routeSuggestionInFlight.current.add(routeKey)
+
+      getOsrmTravelSuggestions(previousEntry.coordinates, entry.coordinates)
+        .then((suggestions) => {
+          const normalized = suggestions.length > 0 ? suggestions : null
+          routeSuggestionCache.current[routeKey] = normalized
+          if (normalized) {
+            setRouteSuggestionsByKey((prev) => ({
+              ...prev,
+              [routeKey]: normalized
+            }))
+          }
+        })
+        .catch(() => {
+          routeSuggestionCache.current[routeKey] = null
+        })
+        .finally(() => {
+          routeSuggestionInFlight.current.delete(routeKey)
+        })
+    })
+  }, [entries])
+
   // Auto-search when modal opens with existing location
   useEffect(() => {
     if (locationModalOpen && activeEntryIndex !== null) {
       const currentEntry = entries[activeEntryIndex]
-      if (currentEntry.location && currentEntry.location.trim()) {
-        // Set the location search value to official name when available
-        const officialName = splitLocationDisplay(currentEntry.location).name || currentEntry.location
-        setLocationSearch(officialName)
-        setSearchResultLocation(currentEntry.location)
+      const currentLabel = getEntryLocationLabel(currentEntry)
+      if (currentLabel && currentLabel.trim()) {
+        setLocationSearch(currentEntry.locationName || currentLabel)
+        setSearchResultName(currentEntry.locationName || '')
+        setSearchResultLocation(currentEntry.locationAddress || currentEntry.location)
         // Auto-trigger search if coordinates exist
         if (currentEntry.coordinates) {
           setSearchResultCoords(currentEntry.coordinates)
@@ -391,13 +506,15 @@ function CreateItineraryPage() {
             setIsGeocoding(true)
             setGeocodingError('')
             try {
-              const result = await geocodeWithFallback(currentEntry.location)
+              const result = await geocodeWithFallback(currentLabel)
               setSearchResultCoords({ lat: result.lat, lng: result.lng })
-              setSearchResultLocation(result.formattedAddress)
+              setSearchResultLocation(result.address)
+              setSearchResultName(result.officialName)
               setHasSearched(true)
             } catch {
               setGeocodingError(t('create.geocodingFallbackMessage'))
-              setSearchResultLocation(currentEntry.location)
+              setSearchResultLocation(currentEntry.locationAddress || currentEntry.location)
+              setSearchResultName(currentEntry.locationName || '')
               setHasSearched(true)
             } finally {
               setIsGeocoding(false)
@@ -407,12 +524,12 @@ function CreateItineraryPage() {
         }
       }
     }
-  }, [locationModalOpen, activeEntryIndex])
+  }, [locationModalOpen, activeEntryIndex, entries, geocodeWithFallback, t])
 
-  const showToast = (message: string) => {
+  const showToast = useCallback((message: string) => {
     setToastMessage(message)
     setToastVisible(true)
-  }
+  }, [])
 
   const savePreviewAndNavigate = () => {
     const previewData = {
@@ -422,6 +539,8 @@ function CreateItineraryPage() {
         date: e.date,
         time: e.time,
         location: e.location,
+        locationName: e.locationName,
+        locationAddress: e.locationAddress,
         icon: e.icon,
         memo: e.memo,
         cost: e.cost,
@@ -473,15 +592,18 @@ function CreateItineraryPage() {
     setGeocodingError('')
     setSearchResultCoords(null)
     setSearchResultLocation('')
+    setSearchResultName('')
     try {
       const result = await geocodeWithFallback(query)
       setSearchResultCoords({ lat: result.lat, lng: result.lng })
-      setSearchResultLocation(result.formattedAddress)
+      setSearchResultLocation(result.address)
+      setSearchResultName(result.officialName)
       setHasSearched(true)
     } catch {
       setGeocodingError(t('create.geocodingFallbackMessage'))
       showToast(t('create.geocodingFailed'))
       setSearchResultLocation(query)
+      setSearchResultName('')
       setHasSearched(true)
     } finally {
       setIsGeocoding(false)
@@ -489,19 +611,22 @@ function CreateItineraryPage() {
   }
 
   const handleApplyLocation = async () => {
-    if (!searchResultLocation || activeEntryIndex === null) {
+    if ((!searchResultLocation && !searchResultName) || activeEntryIndex === null) {
       return
     }
 
     const currentEntry = entries[activeEntryIndex]
+    const displayLabel = searchResultName || searchResultLocation
     const updates: Partial<StopEntry> = {
-      location: searchResultLocation,
+      location: displayLabel,
+      locationName: searchResultName,
+      locationAddress: searchResultLocation,
       coordinates: searchResultCoords
     }
 
     // Auto-set emoji if current icon is default
     if (currentEntry.icon === '📍') {
-      const autoEmoji = getAutoEmoji(searchResultLocation)
+      const autoEmoji = getAutoEmoji(displayLabel)
       if (autoEmoji) {
         updates.icon = autoEmoji
       }
@@ -517,6 +642,7 @@ function CreateItineraryPage() {
     setHasSearched(false)
     setSearchResultCoords(null)
     setSearchResultLocation('')
+    setSearchResultName('')
   }
   const resetModal = () => {
     setModalPassword('')
@@ -672,7 +798,7 @@ function CreateItineraryPage() {
     }))
   }
 
-  const openModalWithValidation = () => {
+  const openModalWithValidation = useCallback(() => {
     setModalError('')
     setValidationErrors({})
 
@@ -691,7 +817,7 @@ function CreateItineraryPage() {
     if (formRef.current?.reportValidity()) {
       setIsModalOpen(true)
     }
-  }
+  }, [entries, formData.title, showToast, t])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -729,7 +855,7 @@ function CreateItineraryPage() {
 
     // Filter out empty panels (no location and no memo)
     const filteredEntries = entries.filter(
-      entry => entry.location.trim() || entry.memo.trim()
+      entry => getEntryLocationLabel(entry).trim() || entry.memo.trim()
     )
     const removedCount = entries.length - filteredEntries.length
 
@@ -763,6 +889,8 @@ function CreateItineraryPage() {
           date: e.date,
           time: e.time,
           location: e.location,
+          locationName: e.locationName,
+          locationAddress: e.locationAddress,
           icon: e.icon,
           memo: e.memo,
           cost: e.cost,
@@ -778,7 +906,9 @@ function CreateItineraryPage() {
       }
 
       const origin = typeof window !== 'undefined' ? window.location.origin : 'https://bokutabi.app'
-      setShareLink(`${origin}/itinerary/${id}`)
+      const shareUrl = new URL(`/itinerary/${id}`, origin)
+      shareUrl.searchParams.set('pw', modalPassword)
+      setShareLink(shareUrl.toString())
       setCreatedId(id)
       setCopyMessage('')
     } catch (err) {
@@ -903,16 +1033,23 @@ function CreateItineraryPage() {
             {filteredEntries.map((entry) => {
               const index = entries.indexOf(entry)
               const previousEntry = index > 0 ? entries[index - 1] : null
+              const entryLocationLabel = getEntryLocationLabel(entry)
+              const previousLocationLabel = previousEntry ? getEntryLocationLabel(previousEntry) : ''
+              const routeKey =
+                previousEntry?.coordinates && entry.coordinates
+                  ? getRouteKey(previousEntry.coordinates, entry.coordinates)
+                  : ''
+              const osrmSuggestions = routeKey ? routeSuggestionsByKey[routeKey] : undefined
               const canSuggest =
                 !!previousEntry &&
                 previousEntry.time.trim() !== '' &&
-                previousEntry.location.trim() !== '' &&
-                entry.location.trim() !== '' &&
+                previousLocationLabel.trim() !== '' &&
+                entryLocationLabel.trim() !== '' &&
                 parseTimeToMinutes(previousEntry.time) !== null
             const travelSuggestions = canSuggest
-              ? getMockTravelSuggestions(previousEntry.location, entry.location)
+              ? osrmSuggestions ?? getMockTravelSuggestions(previousLocationLabel, entryLocationLabel)
               : []
-            const hasLocation = entry.location.trim() !== ''
+            const hasLocation = entryLocationLabel.trim() !== ''
 
             return (
               <Fragment key={`entry-${index}`}>
@@ -1078,11 +1215,12 @@ function CreateItineraryPage() {
                       onClick={() => {
                         setActiveEntryIndex(index)
                         setLocationModalOpen(true)
-                      setLocationSearch('')
-                      setHasSearched(false)
-                      setSearchResultCoords(null)
-                      setSearchResultLocation('')
-                      setGeocodingError('')
+                        setLocationSearch('')
+                        setHasSearched(false)
+                        setSearchResultCoords(null)
+                        setSearchResultLocation('')
+                        setSearchResultName('')
+                        setGeocodingError('')
                       }}
                       aria-label={t('create.locationButtonLabel', 'Select location')}
                       className={`w-full flex items-center gap-3 rounded-2xl px-4 py-3 text-xs transition focus-visible:outline focus-visible:outline-2 ${
@@ -1096,7 +1234,7 @@ function CreateItineraryPage() {
                       />
                       <div className="text-left">
                         <p className="text-[0.85rem] font-semibold text-gray-900 dark:text-gray-50">
-                          {entry.location || t('create.locationHint')}
+                          {getEntryLocationLabel(entry) || t('create.locationHint')}
                         </p>
                       </div>
                   </button>
@@ -1206,6 +1344,7 @@ function CreateItineraryPage() {
               setHasSearched(false)
               setSearchResultCoords(null)
               setSearchResultLocation('')
+              setSearchResultName('')
               setGeocodingError('')
             }
           }}
@@ -1224,6 +1363,7 @@ function CreateItineraryPage() {
                   setHasSearched(false)
                   setSearchResultCoords(null)
                   setSearchResultLocation('')
+                  setSearchResultName('')
                   setGeocodingError('')
                 }}
                 className="text-gray-500 hover:text-gray-900 dark:hover:text-gray-100"

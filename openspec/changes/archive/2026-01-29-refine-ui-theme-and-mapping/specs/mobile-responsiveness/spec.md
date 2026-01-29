@@ -40,17 +40,6 @@
 - **THEN** モーダルはmax-w-4xl（最大）サイズで表示
 - **AND** 地図プレビューエリアの高さは h-96 (384px) で表示
 
-## MODIFIED Requirements
-
-### Requirement: Floating action buttons conditional display
-フローティングアクションボタンの表示条件に、モーダルの開閉状態を追加する（SHALL）。
-
-#### Scenario: 表示条件の評価
-- **WHEN** ボタンの表示/非表示を決定
-- **THEN** デスクトップの場合は常に表示
-- **AND** モバイルの場合、locationModalOpenがfalseの時のみ表示
-- **AND** モバイルの場合、locationModalOpenがtrueの時は非表示
-
 ## Implementation Notes
 
 実装方法の推奨:

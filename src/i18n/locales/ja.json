@@ -52,6 +52,7 @@
     "copyLink": "リンクをコピー",
     "copiedLink": "リンクをコピーしました",
     "copyFailed": "リンクのコピーに失敗しました",
+    "authFailed": "リンクのパスワードで認証できませんでした。",
     "passwordHint": "共有の際はパスワードを大切に扱ってください。",
     "needPassword": "パスワードでログインする",
     "itemsTitle": "予定された場所",

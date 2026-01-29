@@ -52,6 +52,7 @@
     "copyLink": "Copy link",
     "copiedLink": "Link copied to clipboard",
     "copyFailed": "Unable to copy link",
+    "authFailed": "Unable to authenticate with the link password.",
     "passwordHint": "Keep the password safe when sharing.",
     "needPassword": "Need to authenticate?",
     "itemsTitle": "Planned places",

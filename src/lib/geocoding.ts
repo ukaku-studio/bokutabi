@@ -1,7 +1,8 @@
 export type GeocodingResult = {
   lat: number
   lng: number
-  formattedAddress: string
+  address: string
+  officialName: string
 }
 
 export async function geocodeAddress(address: string, language?: string): Promise<GeocodingResult> {
@@ -10,6 +11,7 @@ export async function geocodeAddress(address: string, language?: string): Promis
   url.searchParams.set('q', address)
   url.searchParams.set('limit', '1')
   url.searchParams.set('addressdetails', '1')
+  url.searchParams.set('namedetails', '1')
   if (language) {
     url.searchParams.set('accept-language', language)
   }
@@ -28,9 +30,18 @@ export async function geocodeAddress(address: string, language?: string): Promis
 
   const result = data[0]
 
+  const officialName =
+    typeof result.name === 'string'
+      ? result.name
+      : typeof result.namedetails?.name === 'string'
+        ? result.namedetails.name
+        : ''
+  const displayName = typeof result.display_name === 'string' ? result.display_name : ''
+
   return {
     lat: parseFloat(result.lat),
     lng: parseFloat(result.lon),
-    formattedAddress: result.display_name
+    address: displayName,
+    officialName
   }
 }

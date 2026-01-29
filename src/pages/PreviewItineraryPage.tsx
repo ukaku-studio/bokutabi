@@ -6,6 +6,8 @@ type PreviewEntry = {
   date: string
   time: string
   location: string
+  locationName?: string
+  locationAddress?: string
   icon: string
   memo: string
   cost: string
@@ -214,7 +216,7 @@ function PreviewItineraryPage() {
                         <span className="text-2xl">{entry.icon}</span>
                         <div className="flex-1 min-w-0">
                           <h4 className="text-lg font-semibold truncate">
-                            {entry.location || t('home.noLocation')}
+                            {entry.locationName || entry.locationAddress || entry.location || t('home.noLocation')}
                           </h4>
                           {entry.memo && (
                             <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">

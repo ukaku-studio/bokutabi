@@ -10,6 +10,8 @@ type SavedItinerary = {
     date: string
     time: string
     location: string
+    locationName?: string
+    locationAddress?: string
     icon: string
     memo: string
   }[]
@@ -201,7 +203,7 @@ function HomePage() {
                       <div key={idx} className="flex items-center gap-2 text-sm">
                         <span className="text-lg">{entry.icon}</span>
                         <span className="text-gray-600 dark:text-gray-300">
-                          {entry.location || t('home.noLocation', '場所未設定')}
+                          {entry.locationName || entry.locationAddress || entry.location || t('home.noLocation', '場所未設定')}
                         </span>
                         {entry.date && (
                           <span className="text-xs text-gray-400 dark:text-gray-500">
